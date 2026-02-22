@@ -396,7 +396,7 @@ export default function ProductionPage() {
     // ===========================
     // DRAG HANDLER
     // ===========================
-    const handleItemDrop = useCallback((itemId: string, fromStageId: string, toStageId: string) => {
+    const handleItemDrop = useCallback(async (itemId: string, fromStageId: string, toStageId: string) => {
         const item = items.find(i => i.id === itemId);
         const targetStage = blueprint.stages.find(s => s.id === toStageId);
         if (!item || !targetStage) return;
@@ -406,7 +406,6 @@ export default function ProductionPage() {
 
         // Determine material category.
         let itemCategory = 'raw';
-        // Base logic: prioritize checking if it's a finished good first
         if (item.sku?.startsWith('FG-')) {
             itemCategory = 'finished';
         } else if (item.parentId || (item.mergedFrom && item.mergedFrom.length > 0) || item.sku?.startsWith('WIP-')) {
@@ -420,12 +419,8 @@ export default function ProductionPage() {
         }
 
         switch (targetStage.logicType) {
-            case 'split':
-                setSplitDialogOpen(true);
-                break;
-            case 'exit':
-                setSalesDialogOpen(true);
-                break;
+            case 'split': setSplitDialogOpen(true); break;
+            case 'exit': setSalesDialogOpen(true); break;
             case 'merge': {
                 const isInBOM = products.some(p => p.bom.some(b => b.materialSku === item.sku));
                 if (isInBOM) {
@@ -440,65 +435,101 @@ export default function ProductionPage() {
                 if (item.quantity > 1) {
                     setMoveDialogOpen(true);
                 } else {
-                    saveHistory();
-                    const result = handlePassthrough(items, itemId, toStageId, 1, userName, blueprint.stages);
-                    setItems(result.items);
-                    setLogs(prev => [result.log, ...prev]);
-                    toast.success(`➡️ Moved '${item.name}' → ${targetStage.name}`);
-                    updateInventoryOnMove(item.sku || '', 1, blueprint.stages.find(s => s.id === item.stageId)?.name || '', targetStage.name);
+                    try {
+                        const result = handlePassthrough(items, itemId, toStageId, 1, userName, blueprint.stages);
+                        // PERSIST TO SUPABASE
+                        for (const itm of result.items) {
+                            await saveKanbanItem(itm);
+                        }
+                        // If item was removed/consumed in local engine logic (e.g. fully moved and merged), 
+                        // we might need to delete the old one or the result logic handles it via status.
+                        // Actually, our saveKanbanItem handles updates/inserts. For full moves, 
+                        // handlePassthrough updates the stageId, so we just save it.
+                        await createProductionLog(result.log);
+                        handleRefresh();
+                        toast.success(`➡️ Moved '${item.name}' → ${targetStage.name}`);
+                    } catch (err) {
+                        toast.error("Gagal update ke database");
+                    }
                 }
                 break;
             }
         }
-    }, [items, userName, blueprint.stages, saveHistory]);
+    }, [items, userName, blueprint.stages, products, handleRefresh]);
 
-    // ===========================
-    // MOVE CONFIRM (Partial)
-    // ===========================
-    const handleMoveConfirm = useCallback((movedQuantity: number) => {
+    const handleMoveConfirm = useCallback(async (movedQuantity: number) => {
         if (!pendingItem || !pendingTargetStage) return;
-        saveHistory();
-        const result = handlePassthrough(
-            items, pendingItem.id, pendingTargetStage.id,
-            movedQuantity, userName, blueprint.stages
-        );
-        setItems(result.items);
-        setLogs(prev => [result.log, ...prev]);
-        setMoveDialogOpen(false);
-        toast.success(`➡️ Moved ${movedQuantity}x '${pendingItem.name}' → ${pendingTargetStage.name}`);
-        updateInventoryOnMove(pendingItem.sku || '', movedQuantity, blueprint.stages.find(s => s.id === pendingItem.stageId)?.name || '', pendingTargetStage.name);
-    }, [items, pendingItem, pendingTargetStage, userName, blueprint.stages, saveHistory, updateInventoryOnMove]);
+        try {
+            const result = handlePassthrough(
+                items, pendingItem.id, pendingTargetStage.id,
+                movedQuantity, userName, blueprint.stages
+            );
+
+            // Persist all affected items
+            for (const itm of result.items) {
+                await saveKanbanItem(itm);
+            }
+            await createProductionLog(result.log);
+            setMoveDialogOpen(false);
+            handleRefresh();
+            toast.success(`➡️ Moved ${movedQuantity}x '${pendingItem.name}' → ${pendingTargetStage.name}`);
+        } catch (err) {
+            toast.error("Gagal simpan pergerakan");
+        }
+    }, [items, pendingItem, pendingTargetStage, userName, blueprint.stages, handleRefresh]);
 
     // ===========================
     // SPLIT CONFIRM
     // ===========================
-    const handleSplitConfirm = useCallback((consumedCount: number, yieldCount: number, childName: string, childSku: string) => {
+    const handleSplitConfirm = useCallback(async (consumedCount: number, yieldCount: number, childName: string, childSku: string) => {
         if (!pendingItem || !pendingTargetStage) return;
-        saveHistory();
-        const result = handleSplit(
-            items, pendingItem.id, pendingTargetStage.id,
-            consumedCount, yieldCount, childName, childSku, userName, blueprint.stages
-        );
-        setItems(result.items);
-        setLogs(prev => [...result.logs, ...prev]);
-        setSplitDialogOpen(false);
-        toast.success(`✂️ Split '${pendingItem.name}' → ${yieldCount} × ${childName}`);
-    }, [items, pendingItem, pendingTargetStage, userName, blueprint.stages, saveHistory]);
+        try {
+            const result = handleSplit(
+                items, pendingItem.id, pendingTargetStage.id,
+                consumedCount, yieldCount, childName, childSku, userName, blueprint.stages
+            );
+            for (const itm of result.items) {
+                await saveKanbanItem(itm);
+            }
+            for (const l of result.logs) {
+                await createProductionLog(l);
+            }
+            setSplitDialogOpen(false);
+            handleRefresh();
+            toast.success(`✂️ Split '${pendingItem.name}' → ${yieldCount} × ${childName}`);
+        } catch (err) {
+            toast.error("Gagal simpan split");
+        }
+    }, [items, pendingItem, pendingTargetStage, userName, blueprint.stages, handleRefresh]);
 
     // ===========================
     // ASSEMBLY ALLOCATION CONFIRM
     // ===========================
-    const handleAssemblyAllocateConfirm = useCallback((allocateQty: number, product: MasterProduct) => {
+    const handleAssemblyAllocateConfirm = useCallback(async (allocateQty: number, product: MasterProduct) => {
         if (!pendingItem || !pendingTargetStage) return;
-        saveHistory();
-        const result = handleAssemblyAllocation(
-            items, pendingItem.id, pendingTargetStage.id, allocateQty, product, userName, blueprint.stages
-        );
-        setItems(result.items);
-        setLogs(prev => [...result.logs, ...prev]);
-        setAssemblyAllocationDialogOpen(false);
-        toast.success(`🔧 Dialokasikan ${allocateQty}x ${pendingItem.name} ke Perakitan ${product.name}`);
-    }, [items, pendingItem, pendingTargetStage, userName, blueprint.stages, saveHistory]);
+        try {
+            const result = handleAssemblyAllocation(
+                items, pendingItem.id, pendingTargetStage.id, allocateQty, product, userName, blueprint.stages
+            );
+            for (const itm of result.items) {
+                if (itm.status === 'consumed') {
+                    // We could either update status to consumed or delete. 
+                    // Let's update status to keep historical links in DB.
+                    await saveKanbanItem(itm);
+                } else {
+                    await saveKanbanItem(itm);
+                }
+            }
+            for (const l of result.logs) {
+                await createProductionLog(l);
+            }
+            setAssemblyAllocationDialogOpen(false);
+            handleRefresh();
+            toast.success(`🔧 Dialokasikan ${allocateQty}x ${pendingItem.name} ke Perakitan ${product.name}`);
+        } catch (err) {
+            toast.error("Gagal simpan alokasi perakitan");
+        }
+    }, [items, pendingItem, pendingTargetStage, userName, blueprint.stages, handleRefresh]);
 
     const handleAllocateClick = useCallback((item: KanbanItem) => {
         const targetStage = blueprint.stages.find(s => s.id === item.stageId);
@@ -512,18 +543,24 @@ export default function ProductionPage() {
     // ===========================
     // SALES CONFIRM
     // ===========================
-    const handleSalesConfirm = useCallback((channel: SalesChannel) => {
+    const handleSalesConfirm = useCallback(async (channel: SalesChannel) => {
         if (!pendingItem || !pendingTargetStage) return;
-        saveHistory();
-        const result = handleExit(
-            items, pendingItem.id, pendingTargetStage.id,
-            channel, 0, userName, blueprint.stages
-        );
-        setItems(result.items);
-        setLogs(prev => [result.log, ...prev]);
-        setSalesDialogOpen(false);
-        toast.success(`💰 Sold '${pendingItem.name}' via ${channel}`);
-    }, [items, pendingItem, pendingTargetStage, userName, blueprint.stages, saveHistory]);
+        try {
+            const result = handleExit(
+                items, pendingItem.id, pendingTargetStage.id,
+                channel, 0, userName, blueprint.stages
+            );
+            for (const itm of result.items) {
+                await saveKanbanItem(itm);
+            }
+            await createProductionLog(result.log);
+            setSalesDialogOpen(false);
+            handleRefresh();
+            toast.success(`💰 Sold '${pendingItem.name}' via ${channel}`);
+        } catch (err) {
+            toast.error("Gagal simpan data penjualan");
+        }
+    }, [items, pendingItem, pendingTargetStage, userName, blueprint.stages, handleRefresh]);
 
     // ===========================
     // SEND TO WORKFLOW
@@ -576,21 +613,28 @@ export default function ProductionPage() {
         if (item.collection) setNewCollection(item.collection);
     };
 
-    const handleConfirmAdd = () => {
+    const handleConfirmAdd = async () => {
         if (!newName.trim()) { toast.error('Nama item harus diisi'); return; }
-        saveHistory();
-        const result = handleAddItem(
-            items, newName.trim(), newSku, addToStageId,
-            parseInt(newQty) || 1,
-            newCollection.trim() || null,
-            newEmoji || undefined,
-            userName, blueprint.stages
-        );
-        setItems(result.items);
-        setLogs(prev => [result.log, ...prev]);
-        setAddDialogOpen(false);
-        const stageName = blueprint.stages.find(s => s.id === addToStageId)?.name || '';
-        toast.success(`Added '${newName}' to ${stageName}`);
+        try {
+            const result = handleAddItem(
+                items, newName.trim(), newSku, addToStageId,
+                parseInt(newQty) || 1,
+                newCollection.trim() || null,
+                newEmoji || undefined,
+                userName, blueprint.stages
+            );
+
+            for (const itm of result.items) {
+                await saveKanbanItem(itm);
+            }
+            await createProductionLog(result.log);
+            setAddDialogOpen(false);
+            handleRefresh();
+            const stageName = blueprint.stages.find(s => s.id === addToStageId)?.name || '';
+            toast.success(`Added '${newName}' to ${stageName}`);
+        } catch (err) {
+            toast.error("Gagal tambah item");
+        }
     };
 
     // ===========================
@@ -606,24 +650,30 @@ export default function ProductionPage() {
         setEditDialogOpen(true);
     }, []);
 
-    const handleConfirmEdit = () => {
+    const handleConfirmEdit = async () => {
         if (!editingItem || !editName.trim()) return;
-        saveHistory();
-        const result = handleEditItem(
-            items, editingItem.id,
-            {
-                name: editName.trim(),
-                emoji: editEmoji || undefined,
-                sku: editSku || null,
-                quantity: parseInt(editQty) || 1,
-                collection: editCollection.trim() || null,
-            },
-            userName, blueprint.stages
-        );
-        setItems(result.items);
-        setLogs(prev => [result.log, ...prev]);
-        setEditDialogOpen(false);
-        toast.success(`✏️ Updated '${editName}'`);
+        try {
+            const result = handleEditItem(
+                items, editingItem.id,
+                {
+                    name: editName.trim(),
+                    emoji: editEmoji || undefined,
+                    sku: editSku || null,
+                    quantity: parseInt(editQty) || 1,
+                    collection: editCollection.trim() || null,
+                },
+                userName, blueprint.stages
+            );
+            for (const itm of result.items) {
+                await saveKanbanItem(itm);
+            }
+            await createProductionLog(result.log);
+            setEditDialogOpen(false);
+            handleRefresh();
+            toast.success(`✏️ Updated '${editName}'`);
+        } catch (err) {
+            toast.error("Gagal simpan perubahan");
+        }
     };
 
     // ===========================
@@ -634,14 +684,18 @@ export default function ProductionPage() {
         setDeleteDialogOpen(true);
     }, []);
 
-    const handleConfirmDelete = () => {
+    const handleConfirmDelete = async () => {
         if (!deletingItem) return;
-        saveHistory();
-        const result = handleDeleteItem(items, deletingItem.id, userName, blueprint.stages);
-        setItems(result.items);
-        setLogs(prev => [result.log, ...prev]);
-        setDeleteDialogOpen(false);
-        toast.success(`🗑️ Deleted '${deletingItem.name}'`);
+        try {
+            const result = handleDeleteItem(items, deletingItem.id, userName, blueprint.stages);
+            await deleteKanbanItem(deletingItem.id);
+            await createProductionLog(result.log);
+            setDeleteDialogOpen(false);
+            handleRefresh();
+            toast.success(`🗑️ Deleted '${deletingItem.name}'`);
+        } catch (err) {
+            toast.error("Gagal hapus item");
+        }
     };
 
     // ===========================
@@ -653,7 +707,7 @@ export default function ProductionPage() {
         setRejectDialogOpen(true);
     }, []);
 
-    const handleConfirmReject = () => {
+    const handleConfirmReject = async () => {
         if (!rejectingItem) return;
         const qty = parseInt(rejectQty);
         if (isNaN(qty) || qty <= 0 || qty > rejectingItem.quantity) {
@@ -661,12 +715,18 @@ export default function ProductionPage() {
             return;
         }
 
-        saveHistory();
-        const result = handleRejectItem(items, rejectingItem.id, qty, userName, blueprint.stages);
-        setItems(result.items);
-        setLogs(prev => [result.log, ...prev]);
-        setRejectDialogOpen(false);
-        toast.success(`⚠️ Marked ${qty}x '${rejectingItem.name}' as Reject`);
+        try {
+            const result = handleRejectItem(items, rejectingItem.id, qty, userName, blueprint.stages);
+            for (const itm of result.items) {
+                await saveKanbanItem(itm);
+            }
+            await createProductionLog(result.log);
+            setRejectDialogOpen(false);
+            handleRefresh();
+            toast.success(`⚠️ Marked ${qty}x '${rejectingItem.name}' as Reject`);
+        } catch (err) {
+            toast.error("Gagal tandai reject");
+        }
     };
 
     // Items available for BOM merge (active items with stock)
