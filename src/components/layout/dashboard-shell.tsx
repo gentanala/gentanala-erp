@@ -30,8 +30,8 @@ export function DashboardShell({ children, header }: DashboardShellProps) {
             <AppSidebar />
             <SidebarInset>
                 <header className="flex h-14 items-center gap-4 border-b px-6 shrink-0">
-                    <SidebarTrigger className="-ml-2" />
-                    <Separator orientation="vertical" className="h-6" />
+                    <SidebarTrigger className="-ml-2 md:hidden" />
+                    <Separator orientation="vertical" className="h-6 md:hidden" />
                     {header}
                 </header>
                 <main className="flex-1 overflow-auto p-6">

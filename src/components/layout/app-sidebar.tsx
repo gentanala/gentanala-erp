@@ -26,7 +26,9 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    SidebarTrigger,
 } from '@/components/ui/sidebar';
+import { cn } from '@/lib/utils';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -109,14 +111,25 @@ export function AppSidebar() {
 
     return (
         <Sidebar collapsible="icon">
-            <SidebarHeader className="border-b px-6 py-4">
-                <div className="flex items-center gap-2">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold">
-                        G
+            <SidebarHeader className="border-b border-white/20 px-4 py-4 md:pt-4">
+                <div className="flex flex-col gap-4">
+                    <div className="hidden md:flex justify-end min-h-6 h-6">
+                        <SidebarTrigger className="text-slate-500 hover:text-slate-900 bg-white/40 hover:bg-white/60 glass shadow-none rounded-md h-7 w-7" />
                     </div>
-                    <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-                        <span className="font-semibold">Gentanala</span>
-                        <span className="text-xs text-muted-foreground">Mini ERP</span>
+                    <div className="flex items-center gap-2 px-1 pb-2">
+                        <div className="flex flex-col group-data-[collapsible=icon]:hidden w-full">
+                            <img
+                                src="https://dxpjikwepbeufjieduih.supabase.co/storage/v1/object/public/logo/Logo%20gentanala.png"
+                                alt="Gentanala"
+                                className="h-6 w-auto object-contain object-left mb-1 drop-shadow-sm"
+                            />
+                            <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest pl-0.5">GentaCore Dashboard</span>
+                        </div>
+                        <img
+                            src="https://dxpjikwepbeufjieduih.supabase.co/storage/v1/object/public/logo/logo%20kotak%20kecil.png"
+                            alt="G"
+                            className="h-8 w-8 object-contain hidden group-data-[collapsible=icon]:block drop-shadow-md mx-auto"
+                        />
                     </div>
                 </div>
             </SidebarHeader>
@@ -129,7 +142,14 @@ export function AppSidebar() {
                         <SidebarMenu>
                             {filterByRole(mainNavItems).map((item) => (
                                 <SidebarMenuItem key={item.href}>
-                                    <SidebarMenuButton asChild isActive={pathname === item.href}>
+                                    <SidebarMenuButton
+                                        asChild
+                                        isActive={pathname === item.href}
+                                        className={cn(
+                                            "transition-all rounded-xl hover:bg-white/40 mb-1",
+                                            pathname === item.href && "glass text-primary font-bold shadow-sm"
+                                        )}
+                                    >
                                         <Link href={item.href}>
                                             <item.icon className="h-4 w-4" />
                                             <span>{item.title}</span>
@@ -149,7 +169,14 @@ export function AppSidebar() {
                             <SidebarMenu>
                                 {financeNavItems.map((item) => (
                                     <SidebarMenuItem key={item.href}>
-                                        <SidebarMenuButton asChild isActive={pathname === item.href}>
+                                        <SidebarMenuButton
+                                            asChild
+                                            isActive={pathname === item.href}
+                                            className={cn(
+                                                "transition-all rounded-xl hover:bg-white/40 mb-1",
+                                                pathname === item.href && "glass text-primary font-bold shadow-sm"
+                                            )}
+                                        >
                                             <Link href={item.href}>
                                                 <item.icon className="h-4 w-4" />
                                                 <span>{item.title}</span>
@@ -170,7 +197,14 @@ export function AppSidebar() {
                             <SidebarMenu>
                                 {filterByRole(systemNavItems).map((item) => (
                                     <SidebarMenuItem key={item.href}>
-                                        <SidebarMenuButton asChild isActive={pathname === item.href}>
+                                        <SidebarMenuButton
+                                            asChild
+                                            isActive={pathname === item.href}
+                                            className={cn(
+                                                "transition-all rounded-xl hover:bg-white/40 mb-1",
+                                                pathname === item.href && "glass text-primary font-bold shadow-sm"
+                                            )}
+                                        >
                                             <Link href={item.href}>
                                                 <item.icon className="h-4 w-4" />
                                                 <span>{item.title}</span>
@@ -187,7 +221,7 @@ export function AppSidebar() {
             <SidebarFooter className="border-t p-4">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <button className="flex w-full items-center gap-3 rounded-lg p-2 hover:bg-muted transition-colors">
+                        <button className="flex w-full items-center gap-3 rounded-xl p-2 hover:bg-white/40 transition-colors">
                             <Avatar className="h-8 w-8">
                                 <AvatarImage src={profile?.avatar_url || undefined} />
                                 <AvatarFallback className="text-xs">
