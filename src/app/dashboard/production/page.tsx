@@ -29,25 +29,14 @@ import { SendToWorkflowDialog } from '@/components/production/send-to-workflow-d
 import { useAuth } from '@/contexts/auth-context';
 import type { KanbanItem, ActivityLog, WorkflowStage, SalesChannel, WorkflowBlueprint } from '@/lib/database.types';
 import {
-    WATCH_BLUEPRINT,
-    DEMO_ITEMS,
-    handlePassthrough,
-    handleSplit,
-    handleExit,
-    handleAddItem,
-    handleEditItem,
-    handleDeleteItem,
-    handleRejectItem,
-    handleAssemblyAllocation,
-    calcStats,
-} from '@/lib/production-engine';
-import {
-    DEMO_MATERIALS,
-    DEMO_PRODUCTS,
-    DEMO_COLLECTIONS,
-    searchByCategories,
-} from '@/lib/master-data';
-import type { MasterMaterial, MasterProduct, MasterCollection, MaterialCategory } from '@/lib/master-data';
+    getKanbanItems,
+    getKanbanLogs,
+    saveKanbanItem,
+    deleteKanbanItem,
+    createProductionLog,
+    getProductsForSPK
+} from '@/lib/actions/production';
+import { getProducts } from '@/lib/actions/inventory';
 import { toast } from 'sonner';
 import {
     Dialog,
@@ -256,51 +245,44 @@ export default function ProductionPage() {
     const [isLoaded, setIsLoaded] = useState(false);
 
     // Initial Load from LocalStorage
-    useEffect(() => {
-        setIsLoaded(true);
+    const handleRefresh = useCallback(async () => {
+        setLoading(true);
         try {
-            const savedBlueprints = localStorage.getItem('gentanala_master_blueprints');
-            if (savedBlueprints) setBlueprints(JSON.parse(savedBlueprints));
+            const [kanbanData, logsData, invProducts] = await Promise.all([
+                getKanbanItems(),
+                getKanbanLogs(),
+                getProducts() // from inventory actions
+            ]);
 
-            const savedItems = localStorage.getItem('gentanala_prod_items');
-            if (savedItems) setItems(JSON.parse(savedItems));
+            // Sync with local state
+            setItems(kanbanData);
+            setLogs(logsData);
 
-            const savedLogs = localStorage.getItem('gentanala_prod_logs');
-            if (savedLogs) setLogs(JSON.parse(savedLogs));
-
-            const savedMaterials = localStorage.getItem('gentanala_master_materials');
-            if (savedMaterials) setMaterials(JSON.parse(savedMaterials));
-
-            const savedProducts = localStorage.getItem('gentanala_master_products');
-            if (savedProducts) setProducts(JSON.parse(savedProducts));
-
-            const savedCollections = localStorage.getItem('gentanala_master_collections');
-            if (savedCollections) setCollections(JSON.parse(savedCollections));
-        } catch (error) {
-            console.error("Failed restoring state from local storage", error);
+            // Map inventory products to master products for MES internal use
+            const mappedProducts: MasterProduct[] = invProducts.map(p => ({
+                id: p.id,
+                sku: p.sku,
+                name: p.name,
+                collection: p.collection || '',
+                description: p.description || '',
+                bom: [] // In future, load BOM from Supabase or Master Data
+            }));
+            setProducts(mappedProducts);
+            setCollections(DEMO_COLLECTIONS);
+        } catch (error: any) {
+            console.error("Gagal refresh board:", error);
+            toast.error('Gagal memuat data board produksi');
+        } finally {
+            setLoading(false);
+            setIsLoaded(true);
         }
     }, []);
 
-    // Save changes to LocalStorage
     useEffect(() => {
-        if (isLoaded) localStorage.setItem('gentanala_prod_items', JSON.stringify(items));
-    }, [items, isLoaded]);
+        handleRefresh();
+    }, [handleRefresh]);
 
-    useEffect(() => {
-        if (isLoaded) localStorage.setItem('gentanala_prod_logs', JSON.stringify(logs));
-    }, [logs, isLoaded]);
 
-    useEffect(() => {
-        if (isLoaded) localStorage.setItem('gentanala_master_materials', JSON.stringify(materials));
-    }, [materials, isLoaded]);
-
-    useEffect(() => {
-        if (isLoaded) localStorage.setItem('gentanala_master_products', JSON.stringify(products));
-    }, [products, isLoaded]);
-
-    useEffect(() => {
-        if (isLoaded) localStorage.setItem('gentanala_master_collections', JSON.stringify(collections));
-    }, [collections, isLoaded]);
 
     // History Stack for Undo
     const [history, setHistory] = useState<{ items: KanbanItem[], logs: ActivityLog[] }[]>([]);
