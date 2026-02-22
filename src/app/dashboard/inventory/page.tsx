@@ -52,6 +52,51 @@ export default function InventoryPage() {
         handleRefresh();
     }, [handleRefresh]);
 
+    const handleMigrateLocalData = async () => {
+        const saved = localStorage.getItem('gentanala_inventory_products');
+        if (!saved) {
+            toast.info("Gak ada data lokal yang perlu dipindahin bray!");
+            return;
+        }
+
+        const localProducts = JSON.parse(saved);
+        if (localProducts.length === 0) return;
+
+        setLoading(true);
+        toast.loading("Lagi mindahin data lu ke cloud...", { id: 'migration' });
+
+        try {
+            let count = 0;
+            for (const p of localProducts) {
+                // p is from localStorage (Product type)
+                // We create it in Supabase
+                await createProduct({
+                    sku: p.sku,
+                    name: p.name,
+                    description: p.description,
+                    type: p.type,
+                    collection: p.collection,
+                    variant: p.variant,
+                    sale_price: p.sale_price,
+                    cost_price: p.cost_price,
+                    current_stock: p.current_stock,
+                    min_stock_threshold: p.min_stock_threshold,
+                    image_urls: p.image_urls || [],
+                    is_active: p.is_active
+                });
+                count++;
+            }
+            toast.success(`${count} data berhasil dipindahin ke database!`, { id: 'migration' });
+            // Optionally clear local storage to avoid double migration
+            // localStorage.removeItem('gentanala_inventory_products');
+            handleRefresh();
+        } catch (err) {
+            toast.error("Waduh, gagal mindahin data. Coba lagi bray!", { id: 'migration' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // Dialog states
     const [productDialogOpen, setProductDialogOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -134,6 +179,9 @@ export default function InventoryPage() {
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={handleMigrateLocalData} className="text-xs bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100">
+                        Migrasi Data Lama 🚀
+                    </Button>
                     <Button variant="outline" size="icon" onClick={handleRefresh} disabled={loading}>
                         <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                     </Button>

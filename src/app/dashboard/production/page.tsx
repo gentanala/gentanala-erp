@@ -282,6 +282,40 @@ export default function ProductionPage() {
         handleRefresh();
     }, [handleRefresh]);
 
+    const handleMigrateLocalData = async () => {
+        const savedItems = localStorage.getItem('gentanala_prod_items');
+        const savedLogs = localStorage.getItem('gentanala_prod_logs');
+
+        if (!savedItems && !savedLogs) {
+            toast.info("Gak ada data produksi lokal bray!");
+            return;
+        }
+
+        setLoading(true);
+        toast.loading("Lagi mindahin alur produksi lu ke cloud...", { id: 'migration-prod' });
+
+        try {
+            if (savedItems) {
+                const localItems = JSON.parse(savedItems);
+                for (const item of localItems) {
+                    await saveKanbanItem(item);
+                }
+            }
+            if (savedLogs) {
+                const localLogs = JSON.parse(savedLogs);
+                for (const log of localLogs) {
+                    await createProductionLog(log);
+                }
+            }
+            toast.success("Data produksi berhasil dipindahin!", { id: 'migration-prod' });
+            handleRefresh();
+        } catch (err) {
+            toast.error("Gagal mindahin data produksi bray.", { id: 'migration-prod' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
 
 
     // History Stack for Undo
@@ -745,6 +779,9 @@ export default function ProductionPage() {
                     </p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
+                    <Button variant="outline" size="sm" onClick={handleMigrateLocalData} className="text-xs bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100 h-10">
+                        Migrasi Data Lama 🚀
+                    </Button>
                     {history.length > 0 && (
                         <Button
                             variant="outline"
