@@ -80,9 +80,7 @@ export default function InventoryPage() {
                     sale_price: p.sale_price,
                     cost_price: p.cost_price,
                     current_stock: p.current_stock,
-                    min_stock_threshold: p.min_stock_threshold,
-                    image_urls: p.image_urls || [],
-                    is_active: p.is_active
+                    min_stock_threshold: p.min_stock_threshold
                 });
                 count++;
             }

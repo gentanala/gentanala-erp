@@ -38,6 +38,8 @@ import {
 } from '@/lib/actions/production';
 import { getProducts } from '@/lib/actions/inventory';
 import { toast } from 'sonner';
+import { MasterMaterial, MasterProduct, MasterCollection, MaterialCategory, DEMO_MATERIALS, DEMO_PRODUCTS, DEMO_COLLECTIONS, searchByCategories } from '@/lib/master-data';
+import { WATCH_BLUEPRINT, DEMO_ITEMS, calcStats, handlePassthrough, handleSplit, handleExit, handleAssemblyAllocation, handleAddItem, handleEditItem, handleDeleteItem, handleRejectItem } from '@/lib/production-engine';
 import {
     Dialog,
     DialogContent,
@@ -241,8 +243,8 @@ export default function ProductionPage() {
 
     const [items, setItems] = useState<KanbanItem[]>(DEMO_ITEMS);
     const [logs, setLogs] = useState<ActivityLog[]>([]);
-
     const [isLoaded, setIsLoaded] = useState(false);
+    const [loading, setLoading] = useState(false);
 
     // Initial Load from LocalStorage
     const handleRefresh = useCallback(async () => {
