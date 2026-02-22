@@ -1,26 +1,209 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: 210 50% 98%;
+  --color-foreground: 222 47% 11%;
+
+  --color-card: 0 0% 100%;
+  --color-card-foreground: 222 47% 11%;
+
+  --color-popover: 0 0% 100%;
+  --color-popover-foreground: 222 47% 11%;
+
+  --color-primary: 212 100% 50%;
+  --color-primary-foreground: 210 40% 98%;
+
+  --color-secondary: 210 40% 96.1%;
+  --color-secondary-foreground: 222 47% 11%;
+
+  --color-muted: 210 40% 96.1%;
+  --color-muted-foreground: 215.4 16.3% 46.9%;
+
+  --color-accent: 210 40% 96.1%;
+  --color-accent-foreground: 222 47% 11%;
+
+  --color-destructive: 0 84.2% 60.2%;
+  --color-destructive-foreground: 210 40% 98%;
+
+  --color-border: 214.3 31.8% 91.4%;
+  --color-input: 214.3 31.8% 91.4%;
+  --color-ring: 221.2 83.2% 53.3%;
+
+  --radius-lg: 1.5rem;
+  --radius-md: calc(1.5rem - 2px);
+  --radius-sm: calc(1.5rem - 4px);
+
+  --animate-shimmer: shimmer 5s infinite linear;
 }
 
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: 210 50% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 212 100% 50%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+    --radius: 1.5rem;
+  }
+
+  * {
+    border-color: hsl(var(--border) / 0.2);
+  }
+
+  body {
+    background-color: #f0f2f5;
+    background-attachment: fixed;
+    /* Create a rich, deep animated background mesh */
+    background:
+      radial-gradient(circle at 15% 50%, rgba(76, 29, 149, 0.15), transparent 25%),
+      radial-gradient(circle at 85% 30%, rgba(124, 58, 237, 0.15), transparent 25%),
+      radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.1), transparent 50%);
+    background-size: 100% 100%;
+    animation: gradient-move 15s ease infinite alternate;
+    color: hsl(var(--foreground));
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Deep iOS-style mesh gradient for light mode */
+  body:not(.dark) {
+    background:
+      radial-gradient(circle at 0% 0%, rgba(200, 220, 255, 0.8), transparent 40%),
+      radial-gradient(circle at 100% 0%, rgba(230, 210, 255, 0.8), transparent 40%),
+      radial-gradient(circle at 100% 100%, rgba(200, 255, 240, 0.6), transparent 40%),
+      radial-gradient(circle at 0% 100%, rgba(255, 220, 220, 0.6), transparent 40%),
+      #f5f5f7;
+    /* Apple's light grey base */
+  }
+
+  @keyframes gradient-move {
+    0% {
+      background-position: 0% 50%;
+    }
+
+    50% {
+      background-position: 100% 50%;
+    }
+
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+
+    100% {
+      background-position: -200% 0;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+
+  /* True Liquid Glass - Apple VisionOS Style */
+  .glass {
+    background-color: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(40px) saturate(150%);
+    -webkit-backdrop-filter: blur(40px) saturate(150%);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow:
+      0 4px 30px rgba(0, 0, 0, 0.1),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+    /* Inner specular ring */
+  }
+
+  /* High fidelity glass card */
+  .glass-card {
+    background-color: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(25px) saturate(180%);
+    -webkit-backdrop-filter: blur(25px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow:
+      0 8px 32px 0 rgba(31, 38, 135, 0.15),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.3);
+    border-radius: 1.5rem;
+    transition: all 0.5s ease;
+  }
+
+  .glass-card:hover {
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    transform: scale(1.005);
+    background-color: rgba(255, 255, 255, 0.75);
+  }
+
+  /* Sidebar needs to be distinct but glassy */
+  .glass-sidebar {
+    background-color: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border-right: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 20px 0 60px rgba(0, 0, 0, 0.05);
+  }
+
+  /* Liquid inputs */
+  .glass-input {
+    background-color: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow:
+      inset 0 2px 4px 0 rgba(0, 0, 0, 0.02),
+      0 1px 2px rgba(0, 0, 0, 0.05);
+    border-radius: 0.75rem;
+    transition: all 0.3s ease;
+    outline: none;
+  }
+
+  .glass-input:focus {
+    background-color: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.2);
+    border-color: rgba(96, 165, 250, 0.4);
+  }
+
+  /* Jelly/Liquid Buttons */
+  .glass-button {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.1) 100%), #007AFF;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow:
+      0 4px 15px rgba(0, 122, 255, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    color: white;
+    font-weight: 500;
+    letter-spacing: 0.025em;
+    border-radius: 9999px;
+    transition: all 0.3s ease;
+  }
+
+  .glass-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 10px 25px -5px rgba(0, 122, 255, 0.4), inset 0 0 0 2px rgba(255, 255, 255, 0.2);
+    filter: brightness(1.1);
+  }
+
+  .glass-button:active {
+    transform: scale(0.95);
+  }
+
+  .glass-effect-overlay {
+    background: linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.4) 50%, transparent 70%);
+    background-size: 200% 100%;
+    animation: shimmer 5s infinite linear;
+  }
 }
