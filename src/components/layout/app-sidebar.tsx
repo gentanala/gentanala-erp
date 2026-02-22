@@ -113,10 +113,10 @@ export function AppSidebar() {
         <Sidebar collapsible="icon">
             <SidebarHeader className="border-b border-white/20 px-4 py-4 md:pt-4">
                 <div className="flex flex-col gap-4">
-                    <div className="hidden md:flex justify-end min-h-6 h-6">
-                        <SidebarTrigger className="text-slate-500 hover:text-slate-900 bg-white/40 hover:bg-white/60 glass shadow-none rounded-md h-7 w-7" />
+                    <div className="hidden md:flex justify-end group-data-[collapsible=icon]:justify-center min-h-6 h-6">
+                        <SidebarTrigger className="text-slate-500 hover:text-slate-900 bg-white/40 hover:bg-white/60 glass shadow-none rounded-md h-7 w-7 transition-all" />
                     </div>
-                    <div className="flex items-center gap-2 px-1 pb-2">
+                    <div className="flex items-center gap-2 group-data-[collapsible=icon]:px-0 px-1 pb-2">
                         <div className="flex flex-col group-data-[collapsible=icon]:hidden w-full">
                             <img
                                 src="https://dxpjikwepbeufjieduih.supabase.co/storage/v1/object/public/logo/Logo%20gentanala.png"
@@ -128,7 +128,7 @@ export function AppSidebar() {
                         <img
                             src="https://dxpjikwepbeufjieduih.supabase.co/storage/v1/object/public/logo/logo%20kotak%20kecil.png"
                             alt="G"
-                            className="h-8 w-8 object-contain hidden group-data-[collapsible=icon]:block drop-shadow-md mx-auto"
+                            className="h-10 w-10 object-contain hidden group-data-[collapsible=icon]:block drop-shadow-md mx-auto"
                         />
                     </div>
                 </div>
@@ -221,14 +221,14 @@ export function AppSidebar() {
             <SidebarFooter className="border-t p-4">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <button className="flex w-full items-center gap-3 rounded-xl p-2 hover:bg-white/40 transition-colors">
-                            <Avatar className="h-8 w-8">
+                        <button className="flex w-full items-center gap-3 rounded-xl p-2 hover:bg-white/40 transition-colors group-data-[collapsible=icon]:justify-center">
+                            <Avatar className="h-8 w-8 shrink-0">
                                 <AvatarImage src={profile?.avatar_url || undefined} />
                                 <AvatarFallback className="text-xs">
                                     {getInitials(profile?.full_name ?? null)}
                                 </AvatarFallback>
                             </Avatar>
-                            <div className="flex flex-1 flex-col items-start text-left">
+                            <div className="flex flex-1 flex-col items-start text-left group-data-[collapsible=icon]:hidden">
                                 <span className="text-sm font-medium truncate max-w-[120px]">
                                     {profile?.full_name || 'User'}
                                 </span>
@@ -236,7 +236,7 @@ export function AppSidebar() {
                                     {isSuperAdmin ? 'Super Admin' : 'Workshop Admin'}
                                 </Badge>
                             </div>
-                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0 group-data-[collapsible=icon]:hidden" />
                         </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
