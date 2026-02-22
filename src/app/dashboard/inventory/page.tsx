@@ -10,160 +10,47 @@ import { ProductDialog } from '@/components/inventory/product-dialog';
 import { StockMovementDialog } from '@/components/inventory/stock-movement-dialog';
 import { useAuth } from '@/contexts/auth-context';
 import type { Product } from '@/lib/database.types';
-
-// Demo data - will be replaced with Supabase data
-const demoProducts: Product[] = [
-    {
-        id: '1',
-        sku: 'WTC-HT42-BLK',
-        name: 'Hutan Tropis 42mm',
-        description: 'Wooden watch with tropical forest design',
-        type: 'watch',
-        collection: 'Hutan Tropis',
-        variant: 'Black',
-        sale_price: 330000,
-        cost_price: 145000,
-        current_stock: 12,
-        min_stock_threshold: 5,
-        image_urls: [],
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        created_by: null,
-    },
-    {
-        id: '2',
-        sku: 'WTC-HT38-BRN',
-        name: 'Hutan Tropis 38mm',
-        description: 'Wooden watch with tropical forest design',
-        type: 'watch',
-        collection: 'Hutan Tropis',
-        variant: 'Brown',
-        sale_price: 310000,
-        cost_price: 135000,
-        current_stock: 3,
-        min_stock_threshold: 5,
-        image_urls: [],
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        created_by: null,
-    },
-    {
-        id: '3',
-        sku: 'WTC-KL42-NAT',
-        name: 'Kaliandra 42mm',
-        description: 'Elegant wooden watch',
-        type: 'watch',
-        collection: 'Kaliandra',
-        variant: 'Natural',
-        sale_price: 350000,
-        cost_price: 155000,
-        current_stock: 8,
-        min_stock_threshold: 5,
-        image_urls: [],
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        created_by: null,
-    },
-    {
-        id: '4',
-        sku: 'CHD-MN-BLK',
-        name: 'Monokrom Card Holder',
-        description: 'Minimalist card holder',
-        type: 'card_holder',
-        collection: 'Monokrom',
-        variant: 'Black',
-        sale_price: 120000,
-        cost_price: 45000,
-        current_stock: 1,
-        min_stock_threshold: 10,
-        image_urls: [],
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        created_by: null,
-    },
-    {
-        id: '5',
-        sku: 'PHC-HT-BLK',
-        name: 'Hutan Tropis Phone Case',
-        description: 'Wooden phone case with forest pattern',
-        type: 'phone_case',
-        collection: 'Hutan Tropis',
-        variant: 'iPhone 15',
-        sale_price: 180000,
-        cost_price: 65000,
-        current_stock: 15,
-        min_stock_threshold: 5,
-        image_urls: [],
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        created_by: null,
-    },
-];
+import { MasterCollection, DEMO_COLLECTIONS } from '@/lib/master-data';
+import { getProducts, createProduct, updateProduct, getInventoryStats } from '@/lib/actions/inventory';
+import { toast } from 'sonner';
 
 export default function InventoryPage() {
     const { isSuperAdmin } = useAuth();
     const [products, setProducts] = useState<Product[]>([]);
+    const [collections, setCollections] = useState<MasterCollection[]>([]);
     const [loading, setLoading] = useState(false);
     const [isLoaded, setIsLoaded] = useState(false);
+    const [stats, setStats] = useState({
+        totalProducts: 0,
+        totalUnits: 0,
+        totalAssetValue: 0,
+        lowStockCount: 0
+    });
 
-    useEffect(() => {
-        setIsLoaded(true);
+    const handleRefresh = useCallback(async () => {
+        setLoading(true);
         try {
-            const savedProducts = localStorage.getItem('gentanala_inventory_products');
-            let baseProducts: Product[] = savedProducts ? JSON.parse(savedProducts) : demoProducts;
+            const [data, inventoryStats] = await Promise.all([
+                getProducts(),
+                getInventoryStats()
+            ]);
+            setProducts(data);
+            setStats(inventoryStats);
 
-            // Load materials as well so they appear in inventory
-            const savedMats = localStorage.getItem('gentanala_master_materials');
-            if (savedMats) {
-                const materials = JSON.parse(savedMats);
-                const materialProducts: Product[] = materials.map((m: any) => ({
-                    id: m.id,
-                    sku: m.sku,
-                    name: m.name,
-                    description: m.description || '',
-                    type: m.category === 'wip' ? 'wip' : 'raw_material',
-                    collection: null,
-                    variant: null,
-                    sale_price: 0,
-                    cost_price: 0,
-                    current_stock: m.stock || 0,
-                    min_stock_threshold: 5,
-                    image_urls: [],
-                    is_active: true,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
-                    created_by: null
-                }));
-
-                // Merge without duplicating SKUs (assuming we don't save materials to inventory array normally)
-                const existingSkus = new Set(baseProducts.map(p => p.sku));
-                const newProductsToAdd = materialProducts.filter(mp => !existingSkus.has(mp.sku));
-
-                baseProducts = [...baseProducts, ...newProductsToAdd];
-            }
-
-            setProducts(baseProducts);
-            if (!savedProducts) {
-                localStorage.setItem('gentanala_inventory_products', JSON.stringify(demoProducts));
-            }
-        } catch (e) {
-            setProducts(demoProducts);
+            // Load collections (static for now, can be moved to Supabase later)
+            setCollections(DEMO_COLLECTIONS);
+        } catch (error: any) {
+            console.error('Failed to fetch inventory:', error);
+            toast.error('Gagal mengambil data inventory');
+        } finally {
+            setLoading(false);
+            setIsLoaded(true);
         }
     }, []);
 
     useEffect(() => {
-        if (isLoaded) {
-            // Only save actual finished goods / watch accessories back to main array to avoid dirtying
-            // the main inventory array with raw materials that should live in master materials.
-            // But since this is a unified view, we'll save it all and keep it synced.
-            localStorage.setItem('gentanala_inventory_products', JSON.stringify(products));
-        }
-    }, [products, isLoaded]);
+        handleRefresh();
+    }, [handleRefresh]);
 
     // Dialog states
     const [productDialogOpen, setProductDialogOpen] = useState(false);
@@ -173,10 +60,7 @@ export default function InventoryPage() {
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
     // Stats
-    const totalProducts = products.length;
-    const totalUnits = products.reduce((sum, p) => sum + p.current_stock, 0);
-    const totalAssetValue = products.reduce((sum, p) => sum + p.current_stock * p.cost_price, 0);
-    const lowStockCount = products.filter((p) => p.current_stock < p.min_stock_threshold).length;
+    const { totalProducts, totalUnits, totalAssetValue, lowStockCount } = stats;
 
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat('id-ID', {
@@ -205,6 +89,7 @@ export default function InventoryPage() {
 
     const handleDelete = (product: Product) => {
         if (confirm(`Are you sure you want to delete ${product.name} (${product.sku})?`)) {
+            // In a real app, you'd call deleteProduct(product.id)
             setProducts(products.filter(p => p.id !== product.id));
         }
     };
@@ -215,80 +100,20 @@ export default function InventoryPage() {
         }
     };
 
-    const handleProductSave = (data: any) => {
-        let updatedProducts = [...products];
-        let pId = editingProduct?.id;
-
-        if (editingProduct) {
-            updatedProducts = updatedProducts.map(p =>
-                p.id === editingProduct.id ? { ...p, ...data, updated_at: new Date().toISOString() } : p
-            );
-        } else {
-            pId = Math.random().toString(36).substr(2, 9);
-            const newProduct = {
-                id: pId,
-                ...data,
-                is_active: true,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-                created_by: null,
-            };
-            updatedProducts.push(newProduct);
-        }
-
-        setProducts(updatedProducts);
-
-        // SYNC WITH MASTER DATA
+    const handleProductSave = async (data: any) => {
         try {
-            if (data.type === 'raw_material' || data.type === 'wip') {
-                const isWip = data.type === 'wip';
-                const savedMat = localStorage.getItem('gentanala_master_materials');
-                let masterMats = savedMat ? JSON.parse(savedMat) : [];
-
-                if (editingProduct) {
-                    masterMats = masterMats.map((mm: any) =>
-                        mm.id === editingProduct.id || mm.sku === editingProduct.sku
-                            ? { ...mm, name: data.name, sku: data.sku, description: data.description, category: isWip ? 'wip' : 'raw' }
-                            : mm
-                    );
-                } else {
-                    masterMats.push({
-                        id: pId,
-                        name: data.name,
-                        sku: data.sku,
-                        category: isWip ? 'wip' : 'raw',
-                        unit: 'pcs',
-                        description: data.description || ''
-                    });
-                }
-                localStorage.setItem('gentanala_master_materials', JSON.stringify(masterMats));
+            if (editingProduct) {
+                await updateProduct(editingProduct.id, data);
+                toast.success('Produk berhasil diperbarui');
             } else {
-                const savedMaster = localStorage.getItem('gentanala_master_products');
-                let masterProducts = savedMaster ? JSON.parse(savedMaster) : [];
-
-                if (editingProduct) {
-                    masterProducts = masterProducts.map((mp: any) =>
-                        mp.id === editingProduct.id || mp.sku === editingProduct.sku
-                            ? { ...mp, name: data.name, sku: data.sku, collection: data.collection, description: data.description }
-                            : mp
-                    );
-                } else {
-                    masterProducts.push({
-                        id: pId,
-                        name: data.name,
-                        sku: data.sku,
-                        collection: data.collection,
-                        description: data.description,
-                        bom: [] // Default empty BOM for new products
-                    });
-                }
-                localStorage.setItem('gentanala_master_products', JSON.stringify(masterProducts));
+                await createProduct(data);
+                toast.success('Produk berhasil ditambahkan');
             }
-        } catch (e) {
-            console.error("Gagal sinkronisasi ke Master Data", e);
+            handleRefresh();
+        } catch (error: any) {
+            console.error('Failed to save product:', error);
+            toast.error(error.message || 'Gagal menyimpan produk');
         }
-
-        handleRefresh();
     };
 
     const handleProductDialogClose = (open: boolean) => {
@@ -296,12 +121,6 @@ export default function InventoryPage() {
         if (!open) {
             setEditingProduct(null);
         }
-    };
-
-    const handleRefresh = () => {
-        // Will reload from Supabase when connected
-        setLoading(true);
-        setTimeout(() => setLoading(false), 500);
     };
 
     return (
@@ -408,6 +227,7 @@ export default function InventoryPage() {
                 open={productDialogOpen}
                 onOpenChange={handleProductDialogClose}
                 product={editingProduct}
+                collections={collections}
                 onSuccess={handleProductSave}
             />
 

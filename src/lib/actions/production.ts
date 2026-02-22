@@ -297,3 +297,110 @@ export async function getProductsForSPK(): Promise<
         'id' | 'sku' | 'name' | 'current_stock' | 'min_stock_threshold'
     >[];
 }
+// ============================================
+// KANBAN BOARD ACTIONS (MES)
+// ============================================
+
+import type { KanbanItem, ActivityLog } from '@/lib/database.types';
+
+export async function getKanbanItems(): Promise<KanbanItem[]> {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+        .from('kanban_items')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return (data || []) as unknown as KanbanItem[];
+}
+
+export async function getKanbanLogs(): Promise<ActivityLog[]> {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+        .from('production_logs')
+        .select('*')
+        .order('timestamp', { ascending: false })
+        .limit(100);
+
+    if (error) throw error;
+
+    // Map DB fields to ActivityLog interface
+    return (data || []).map((d: any) => ({
+        id: d.id,
+        timestamp: d.timestamp,
+        user: d.user_name,
+        action: d.action,
+        item_name: d.item_name,
+        from_stage: d.from_stage,
+        to_stage: d.to_stage,
+        logicType: d.logic_type,
+        metadata: d.metadata
+    })) as ActivityLog[];
+}
+
+export async function saveKanbanItem(item: Partial<KanbanItem>): Promise<KanbanItem> {
+    const supabase = await createClient();
+
+    const dbItem = {
+        name: item.name,
+        emoji: item.emoji,
+        sku: item.sku,
+        stage_id: item.stageId,
+        quantity: item.quantity,
+        price: item.price,
+        collection: item.collection,
+        thumbnail_url: item.thumbnailUrl,
+        parent_id: item.parentId,
+        child_ids: item.childIds,
+        merged_from: item.mergedFrom,
+        status: item.status,
+        sales_channel: item.salesChannel,
+        metadata: item.metadata,
+        updated_at: new Date().toISOString()
+    };
+
+    let result;
+    if (item.id && !item.id.includes('item-')) { // Check if it's a real UUID or temp ID
+        const { data, error } = await supabase
+            .from('kanban_items')
+            .update(dbItem)
+            .eq('id', item.id)
+            .select()
+            .single();
+        if (error) throw error;
+        result = data;
+    } else {
+        const { data, error } = await supabase
+            .from('kanban_items')
+            .insert({ ...dbItem, id: undefined }) // Let DB generate UUID if temp
+            .select()
+            .single();
+        if (error) throw error;
+        result = data;
+    }
+
+    revalidatePath('/dashboard/production');
+    return result as unknown as KanbanItem;
+}
+
+export async function deleteKanbanItem(id: string): Promise<void> {
+    const supabase = await createClient();
+    const { error } = await supabase.from('kanban_items').delete().eq('id', id);
+    if (error) throw error;
+    revalidatePath('/dashboard/production');
+}
+
+export async function createProductionLog(log: Omit<ActivityLog, 'id' | 'timestamp'>): Promise<void> {
+    const supabase = await createClient();
+    const { error } = await supabase.from('production_logs').insert({
+        user_name: log.user,
+        action: log.action,
+        item_name: log.item_name,
+        from_stage: log.from_stage,
+        to_stage: log.to_stage,
+        logic_type: log.logicType,
+        metadata: log.metadata
+    });
+    if (error) throw error;
+    revalidatePath('/dashboard/production');
+}

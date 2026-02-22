@@ -24,15 +24,17 @@ import {
 } from '@/components/ui/select';
 import { createProduct, updateProduct } from '@/lib/actions/inventory';
 import type { Product, ProductType } from '@/lib/database.types';
+import type { MasterCollection } from '@/lib/master-data';
 
 interface ProductDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     product?: Product | null;
+    collections?: MasterCollection[];
     onSuccess?: (data: any) => void;
 }
 
-export function ProductDialog({ open, onOpenChange, product, onSuccess }: ProductDialogProps) {
+export function ProductDialog({ open, onOpenChange, product, collections = [], onSuccess }: ProductDialogProps) {
     const isEdit = !!product;
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -61,7 +63,7 @@ export function ProductDialog({ open, onOpenChange, product, onSuccess }: Produc
                 name: formData.name,
                 type: formData.type,
                 description: formData.description || undefined,
-                collection: formData.collection || undefined,
+                collection: formData.collection === 'none' ? undefined : (formData.collection || undefined),
                 variant: formData.variant || undefined,
                 sale_price: parseFloat(formData.sale_price) || 0,
                 cost_price: parseFloat(formData.cost_price) || 0,
@@ -144,13 +146,31 @@ export function ProductDialog({ open, onOpenChange, product, onSuccess }: Produc
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="collection">Collection</Label>
-                            <Input
-                                id="collection"
-                                placeholder="Hutan Tropis"
-                                value={formData.collection}
-                                onChange={(e) => setFormData({ ...formData, collection: e.target.value })}
-                                disabled={loading}
-                            />
+                            {collections.length > 0 ? (
+                                <Select
+                                    value={formData.collection}
+                                    onValueChange={(value) => setFormData({ ...formData, collection: value })}
+                                    disabled={loading}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select Collection" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {collections.map(c => (
+                                            <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                                        ))}
+                                        <SelectItem value="none">No Collection</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            ) : (
+                                <Input
+                                    id="collection"
+                                    placeholder="Hutan Tropis"
+                                    value={formData.collection}
+                                    onChange={(e) => setFormData({ ...formData, collection: e.target.value })}
+                                    disabled={loading}
+                                />
+                            )}
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="variant">Variant</Label>
