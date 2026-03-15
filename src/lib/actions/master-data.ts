@@ -137,7 +137,7 @@ export async function getProductsWithBOM(): Promise<MasterProduct[]> {
             collection: p.collection || '',
             description: p.description || '',
             bom: productBoms.map(b => ({
-                materialId: b.material_id,
+                materialSku: b.material?.sku || '', // Added materialSku
                 materialName: b.material?.name || 'Unknown',
                 qty: b.quantity
             }))

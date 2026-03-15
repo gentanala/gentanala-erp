@@ -25,11 +25,9 @@ import type { WorkflowBlueprint, WorkflowStage, StageLogicType, SalesChannel } f
 import { STAGE_LOGIC_CONFIG, SALES_CHANNEL_LABELS } from '@/lib/database.types';
 import { WATCH_BLUEPRINT } from '@/lib/production-engine';
 import {
-    DEMO_MATERIALS,
-    DEMO_PRODUCTS,
     DEMO_COLLECTIONS,
-    addMaterial, updateMaterial, deleteMaterial,
-    addProduct, updateProduct, deleteProduct,
+    addMaterial, deleteMaterial,
+    addProduct,
     addCollection, updateCollection, deleteCollection,
 } from '@/lib/master-data';
 import type {
@@ -254,8 +252,8 @@ export default function SettingsPage() {
     const [editingBp, setEditingBp] = useState<WorkflowBlueprint | null>(null);
 
     // Master data state (persisted in localstorage)
-    const [materials, setMaterials] = useState<MasterMaterial[]>(DEMO_MATERIALS);
-    const [products, setProducts] = useState<MasterProduct[]>(DEMO_PRODUCTS);
+    const [materials, setMaterials] = useState<MasterMaterial[]>([]);
+    const [products, setProducts] = useState<MasterProduct[]>([]);
     const [collections, setCollections] = useState<MasterCollection[]>(DEMO_COLLECTIONS);
     const [masterTab, setMasterTab] = useState<MasterDataTab>('materials');
 
