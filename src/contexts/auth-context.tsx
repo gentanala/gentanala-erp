@@ -29,42 +29,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         let mounted = true;
 
         async function initAuth() {
-            const isDemo = process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') || !process.env.NEXT_PUBLIC_SUPABASE_URL;
-            
-            if (isDemo) {
-                const loggedOut = localStorage.getItem('demo_logged_out') === 'true';
-                if (!loggedOut && mounted) {
-                    setProfile({
-                        id: 'demo-user',
-                        email: 'admin@gentanala.com',
-                        full_name: 'Super Admin',
-                        role: 'super_admin',
-                        avatar_url: null,
-                        created_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString(),
-                    });
+            try {
+                const isDemo = process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') || !process.env.NEXT_PUBLIC_SUPABASE_URL;
+                
+                if (isDemo) {
+                    const loggedOut = localStorage.getItem('demo_logged_out') === 'true';
+                    if (!loggedOut && mounted) {
+                        setProfile({
+                            id: 'demo-user',
+                            email: 'admin@gentanala.com',
+                            full_name: 'Super Admin',
+                            role: 'super_admin',
+                            avatar_url: null,
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString(),
+                        });
+                    } else if (mounted) {
+                        setProfile(null);
+                    }
+                    return;
+                }
+
+                // Real DB Logic: check current active session first
+                const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+                
+                if (sessionError) {
+                    console.error("Auth init error:", sessionError);
+                }
+
+                if (session?.user && mounted) {
+                    const { data: profile, error: profileError } = await supabase
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', session.user.id)
+                        .single();
+
+                    if (profileError) console.warn("Profile fetch error:", profileError.message);
+                    if (mounted) setProfile(profile || null);
                 } else if (mounted) {
                     setProfile(null);
                 }
+            } catch (err) {
+                console.error("Fatal auth init error:", err);
+            } finally {
                 if (mounted) setLoading(false);
-                return;
             }
-
-            // Real DB Logic: check current active session first
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user && mounted) {
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', session.user.id)
-                    .single();
-
-                if (mounted) setProfile(profile || null);
-            } else if (mounted) {
-                setProfile(null);
-            }
-            if (mounted) setLoading(false);
         }
+
+        // Safety timeout to ensure we don't hang forever
+        const safetyTimer = setTimeout(() => {
+            if (mounted && loading) {
+                console.warn("Auth init timed out, forcing loading finished");
+                setLoading(false);
+            }
+        }, 5000);
 
         initAuth();
 
@@ -90,7 +108,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         return () => {
             mounted = false;
-            subscription.unsubscribe();
+            clearTimeout(safetyTimer);
+            if (subscription) subscription.unsubscribe();
         };
     }, [supabase]);
 
