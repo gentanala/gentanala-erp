@@ -39,6 +39,15 @@ import type {
     MaterialCategory,
     BOMComponent,
 } from '@/lib/master-data';
+import { 
+    getMaterials, 
+    createMaterial, 
+    updateMaterial, 
+    deleteMaterialAction,
+    getProductsWithBOM,
+    updateProductBOM 
+} from '@/lib/actions/master-data';
+import { createProduct, updateProduct, deleteProduct } from '@/lib/actions/inventory';
 
 // ==============================
 // STAGE EDITOR (existing)
@@ -253,52 +262,53 @@ export default function SettingsPage() {
     const [isLoaded, setIsLoaded] = useState(false);
 
     // Initial Load from LocalStorage
+    // Initial Load from Cloud
     useEffect(() => {
-        setIsLoaded(true);
-        try {
-            const savedBlueprints = localStorage.getItem('gentanala_master_blueprints');
-            if (savedBlueprints) setBlueprints(JSON.parse(savedBlueprints));
+        const loadInitialData = async () => {
+            try {
+                // Load Master Materials
+                const mats = await getMaterials();
+                setMaterials(mats);
+                
+                // Load Products with BOM
+                const prods = await getProductsWithBOM();
+                // Merge with dummy collections or fetch if you have collections table later
+                setProducts(prods);
 
-            const deduplicate = <T extends { id: string }>(list: T[]): T[] => {
-                const seen = new Set<string>();
-                return list.map(item => {
-                    let newId = item.id;
-                    if (seen.has(newId)) {
-                        newId = newId + '-' + Math.random().toString(36).substr(2, 5);
-                    }
-                    seen.add(newId);
-                    return { ...item, id: newId };
-                });
-            };
+                // Load Blueprints & Collections from localStorage for now (if no table exists yet)
+                const savedBlueprints = localStorage.getItem('gentanala_master_blueprints');
+                if (savedBlueprints) setBlueprints(JSON.parse(savedBlueprints));
 
-            const savedMaterials = localStorage.getItem('gentanala_master_materials');
-            if (savedMaterials) {
-                setMaterials(deduplicate(JSON.parse(savedMaterials)));
+                const savedCollections = localStorage.getItem('gentanala_master_collections');
+                if (savedCollections) {
+                    const deduplicate = <T extends { id: string }>(list: T[]): T[] => {
+                        const seen = new Set<string>();
+                        return list.map(item => {
+                            let newId = item.id;
+                            if (seen.has(newId)) {
+                                newId = newId + '-' + Math.random().toString(36).substr(2, 5);
+                            }
+                            seen.add(newId);
+                            return { ...item, id: newId };
+                        });
+                    };
+                    setCollections(deduplicate(JSON.parse(savedCollections)));
+                } else {
+                    setCollections(DEMO_COLLECTIONS);
+                }
+            } catch (error) {
+                console.error("Failed fetching master data from cloud", error);
+                toast.error("Gagal sync data dari database");
+            } finally {
+                setIsLoaded(true);
             }
-
-            const savedProducts = localStorage.getItem('gentanala_master_products');
-            if (savedProducts) {
-                setProducts(deduplicate(JSON.parse(savedProducts)));
-            }
-
-            const savedCollections = localStorage.getItem('gentanala_master_collections');
-            if (savedCollections) {
-                setCollections(deduplicate(JSON.parse(savedCollections)));
-            }
-        } catch (error) {
-            console.error("Failed restoring state from local storage", error);
-        }
+        };
+        
+        loadInitialData();
     }, []);
 
     // Save changes to LocalStorage
-    useEffect(() => {
-        if (isLoaded) localStorage.setItem('gentanala_master_materials', JSON.stringify(materials));
-    }, [materials, isLoaded]);
-
-    useEffect(() => {
-        if (isLoaded) localStorage.setItem('gentanala_master_products', JSON.stringify(products));
-    }, [products, isLoaded]);
-
+    // No longer save materials/products to local storage, only collections & blueprints
     useEffect(() => {
         if (isLoaded) localStorage.setItem('gentanala_master_collections', JSON.stringify(collections));
     }, [collections, isLoaded]);
@@ -440,16 +450,23 @@ export default function SettingsPage() {
                                 <MaterialForm
                                     material={editingMaterial}
                                     materials={materials}
-                                    onSave={(data) => {
-                                        if (editingMaterial) {
-                                            setMaterials(updateMaterial(materials, editingMaterial.id, data));
-                                            toast.success(`Updated '${data.name}'`);
-                                        } else {
-                                            setMaterials(addMaterial(materials, data as Omit<MasterMaterial, 'id'>));
-                                            toast.success(`Added '${data.name}'`);
+                                    onSave={async (data) => {
+                                        try {
+                                            if (editingMaterial) {
+                                                await updateMaterial(editingMaterial.id, data);
+                                                // Optimistic update
+                                                setMaterials(materials.map(m => m.id === editingMaterial.id ? { ...m, ...data } : m));
+                                                toast.success(`Updated '${data.name}'`);
+                                            } else {
+                                                const newMat = await createMaterial(data);
+                                                setMaterials([...materials, newMat]);
+                                                toast.success(`Added '${data.name}'`);
+                                            }
+                                            setNewMatForm(false);
+                                            setEditingMaterial(null);
+                                        } catch (err: any) {
+                                            toast.error('Gagal menyimpan material: ' + err.message);
                                         }
-                                        setNewMatForm(false);
-                                        setEditingMaterial(null);
                                     }}
                                     onCancel={() => { setNewMatForm(false); setEditingMaterial(null); }}
                                 />
@@ -470,7 +487,15 @@ export default function SettingsPage() {
                                             <button onClick={() => { setEditingMaterial(mat); setNewMatForm(false); }} className="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-blue-600">
                                                 <Pencil className="h-3.5 w-3.5" />
                                             </button>
-                                            <button onClick={() => { setMaterials(deleteMaterial(materials, mat.id)); toast.success(`Deleted '${mat.name}'`); }} className="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-red-600">
+                                            <button onClick={async () => { 
+                                                try {
+                                                    await deleteMaterialAction(mat.id);
+                                                    setMaterials(materials.filter(m => m.id !== mat.id)); 
+                                                    toast.success(`Deleted '${mat.name}'`); 
+                                                } catch (e: any) {
+                                                    toast.error('Gagal menghapus: ' + e.message);
+                                                }
+                                            }} className="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-red-600">
                                                 <Trash2 className="h-3.5 w-3.5" />
                                             </button>
                                         </div>
@@ -496,56 +521,55 @@ export default function SettingsPage() {
                                     product={editingProduct}
                                     materials={materials}
                                     collections={collections}
-                                    onSave={(data) => {
-                                        let updatedProducts = [...products];
-                                        let newId = editingProduct?.id;
-                                        if (editingProduct) {
-                                            updatedProducts = updateProduct(products, editingProduct.id, data);
-                                            toast.success(`Updated '${data.name}'`);
-                                        } else {
-                                            const newProdInfo = { id: `prod-${Date.now().toString(36)}`, ...data } as MasterProduct;
-                                            newId = newProdInfo.id;
-                                            updatedProducts = [...products, newProdInfo];
-                                            toast.success(`Added '${data.name}'`);
-                                        }
-                                        setProducts(updatedProducts);
-
-                                        // SYNC TO INVENTORY
+                                    onSave={async (data) => {
                                         try {
-                                            const savedInv = localStorage.getItem('gentanala_inventory_products');
-                                            let invProducts = savedInv ? JSON.parse(savedInv) : [];
-                                            if (editingProduct) {
-                                                invProducts = invProducts.map((ip: any) =>
-                                                    ip.id === editingProduct.id || ip.sku === editingProduct.sku
-                                                        ? { ...ip, name: data.name, sku: data.sku, collection: data.collection, description: data.description }
-                                                        : ip
-                                                );
-                                            } else {
-                                                invProducts.push({
-                                                    id: newId,
-                                                    name: data.name,
-                                                    sku: data.sku,
-                                                    type: 'watch',
-                                                    collection: data.collection,
-                                                    description: data.description || '',
-                                                    sale_price: 0,
-                                                    cost_price: 0,
-                                                    current_stock: 0,
-                                                    min_stock_threshold: 5,
-                                                    is_active: true,
-                                                    image_urls: [],
-                                                    created_at: new Date().toISOString(),
-                                                    updated_at: new Date().toISOString(),
-                                                    created_by: null
-                                                });
-                                            }
-                                            localStorage.setItem('gentanala_inventory_products', JSON.stringify(invProducts));
-                                        } catch (e) {
-                                            console.error("Gagal sinkronisasi ke Inventory", e);
-                                        }
+                                            const dbProductInput = {
+                                                sku: data.sku,
+                                                name: data.name,
+                                                type: 'watch' as const, // default for now
+                                                collection: data.collection,
+                                                description: data.description,
+                                                sale_price: 0,
+                                                cost_price: 0,
+                                                current_stock: 0,
+                                                min_stock_threshold: 5
+                                            };
 
-                                        setNewProdForm(false);
-                                        setEditingProduct(null);
+                                            let newId = editingProduct?.id;
+                                            
+                                            // 1. Save Base Product
+                                            if (editingProduct) {
+                                                await updateProduct(editingProduct.id, dbProductInput);
+                                                toast.success(`Updated '${data.name}' product details`);
+                                            } else {
+                                                const newProd = await createProduct(dbProductInput);
+                                                newId = newProd.id;
+                                                toast.success(`Created '${data.name}'`);
+                                            }
+
+                                            // 2. Save BOM to product_materials
+                                            if (newId) {
+                                                const bomInput = data.bom.map(b => {
+                                                    // Need the actual material UUID, BOMComponent currently has sku
+                                                    const mat = materials.find(m => m.sku === b.materialSku);
+                                                    return {
+                                                        materialId: mat ? mat.id : '',
+                                                        qty: b.qty
+                                                    };
+                                                }).filter(b => b.materialId !== '');
+                                                
+                                                await updateProductBOM(newId, bomInput);
+                                                
+                                                // Sync local state
+                                                const prods = await getProductsWithBOM();
+                                                setProducts(prods);
+                                            }
+
+                                            setNewProdForm(false);
+                                            setEditingProduct(null);
+                                        } catch (err: any) {
+                                            toast.error('Gagal menyimpan produk: ' + err.message);
+                                        }
                                     }}
                                     onCancel={() => { setNewProdForm(false); setEditingProduct(null); }}
                                 />
@@ -571,7 +595,17 @@ export default function SettingsPage() {
                                                 <button onClick={() => { setEditingProduct(prod); setNewProdForm(false); }} className="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-blue-600">
                                                     <Pencil className="h-3.5 w-3.5" />
                                                 </button>
-                                                <button onClick={() => { setProducts(deleteProduct(products, prod.id)); toast.success(`Deleted '${prod.name}'`); }} className="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-red-600">
+                                                <button onClick={async () => { 
+                                                    try {
+                                                        // NOTE: Delete product actually disables it, but doesn't remove BOM.
+                                                        // This uses the same soft-delete logic as inventory actions.
+                                                        await deleteProduct(prod.id);
+                                                        setProducts(products.filter(p => p.id !== prod.id));
+                                                        toast.success(`Deleted '${prod.name}'`);
+                                                    } catch (err: any) {
+                                                        toast.error('Gagal hapus: ' + err.message);
+                                                    }
+                                                }} className="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-red-600">
                                                     <Trash2 className="h-3.5 w-3.5" />
                                                 </button>
                                             </div>
