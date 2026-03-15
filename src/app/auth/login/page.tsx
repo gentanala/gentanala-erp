@@ -26,31 +26,59 @@ export default function LoginPage() {
             const cleanEmail = email.trim().toLowerCase();
             const cleanPassword = password.trim();
 
-            // For demo purposes, allow bypass if using demo credentials
-            if (cleanEmail === 'admin@gentanala.com' || cleanEmail === 'workshop@gentanala.com') {
-                if (cleanPassword === 'admin123') {
-                    localStorage.removeItem('demo_logged_out');
-                    router.push('/dashboard');
-                    router.refresh();
+            const isDemoURL = process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') || 
+                              !process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+            // First, attempt real Supabase authentication if not strictly a demo URL
+            // (or even if it is, we try Supabase first just in case)
+            if (!isDemoURL) {
+                const { error } = await supabase.auth.signInWithPassword({
+                    email: cleanEmail,
+                    password: cleanPassword,
+                });
+
+                if (error) {
+                    // Check if they are trying to use demo credentials on a real database
+                    if ((cleanEmail === 'admin@gentanala.com' || cleanEmail === 'workshop@gentanala.com') && cleanPassword === 'admin123') {
+                        if (error.message.includes('Email not confirmed')) {
+                            setError(`Login gagal: Akun admin@gentanala.com belum di-confirm. Buka Supabase lu -> Authentication -> Users -> klik tombol 3 titik di kanan email -> "Confirm your email address".`);
+                        } else if (error.message.includes('Invalid login credentials')) {
+                            setError(`Login gagal: Password salah, ATAU akun admin@gentanala.com belum lu bikin di Supabase. Tolong bikin dulu di menu Authentication Supabase pake password 'admin123' & JANGAN LUPA centang "Auto Confirm User".`);
+                        } else {
+                            setError(`Login gagal (Supabase Error): ${error.message}`);
+                        }
+                        return;
+                    }
+                    setError(error.message);
+                    return;
+                }
+            } else {
+                // For demo purposes, allow bypass if using demo credentials and no real DB
+                if (cleanEmail === 'admin@gentanala.com' || cleanEmail === 'workshop@gentanala.com') {
+                    if (cleanPassword === 'admin123') {
+                        localStorage.removeItem('demo_logged_out');
+                        router.push('/dashboard');
+                        router.refresh();
+                        return;
+                    }
+                }
+                
+                const { error } = await supabase.auth.signInWithPassword({
+                    email: cleanEmail,
+                    password: cleanPassword,
+                });
+                if (error) {
+                    setError(error.message);
                     return;
                 }
             }
 
-            const { error } = await supabase.auth.signInWithPassword({
-                email: cleanEmail,
-                password: cleanPassword,
-            });
-
-            if (error) {
-                setError(error.message);
-                return;
-            }
-
+            localStorage.removeItem('demo_logged_out');
             router.push('/dashboard');
             router.refresh();
         } catch (err: any) {
             if (err.message === 'Failed to fetch') {
-                setError('Connection Error: Web server cannot reach Supabase. Please use demo credentials or check your connection.');
+                setError('Connection Error: Web server cannot reach Supabase. Please check your connection.');
             } else {
                 setError('An unexpected error occurred: ' + (err.message || 'Unknown error'));
             }

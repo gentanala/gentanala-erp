@@ -71,10 +71,14 @@ export function ProductDialog({ open, onOpenChange, product, collections = [], o
                 min_stock_threshold: parseInt(formData.min_stock_threshold) || 5,
             };
 
+            if (onSuccess) {
+                await onSuccess(data);
+            }
+            // Only close and reset if no error was thrown by onSuccess
             onOpenChange(false);
-            onSuccess?.(data);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'An error occurred');
+        } catch (err: any) {
+            console.error("Submit error:", err);
+            setError(err.message || 'An error occurred while saving the product.');
         } finally {
             setLoading(false);
         }

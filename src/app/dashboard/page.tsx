@@ -1,35 +1,13 @@
 'use client';
 
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Package, ShoppingCart, Factory, AlertTriangle, TrendingUp, Clock } from 'lucide-react';
-
-// Demo data - will be replaced with real data from Supabase
-const statsData = {
-    superAdmin: [
-        { title: 'Total Products', value: '42', change: '+3 this week', icon: Package, color: 'text-blue-500' },
-        { title: 'Active Orders', value: '12', change: '4 pending', icon: ShoppingCart, color: 'text-green-500' },
-        { title: 'Production', value: '5', change: '2 in QC', icon: Factory, color: 'text-purple-500' },
-        { title: 'Low Stock', value: '3', change: 'needs restock', icon: AlertTriangle, color: 'text-orange-500' },
-    ],
-    workshopAdmin: [
-        { title: 'My Tasks', value: '5', change: '2 urgent', icon: Clock, color: 'text-blue-500' },
-        { title: 'In Production', value: '3', change: '1 for QC', icon: Factory, color: 'text-purple-500' },
-        { title: 'Completed Today', value: '7', change: '+2 from yesterday', icon: TrendingUp, color: 'text-green-500' },
-    ],
-};
-
-const recentOrders = [
-    { id: 'ORD-2026-0012', customer: 'John Doe', status: 'pending', total: 'Rp 660.000' },
-    { id: 'ORD-2026-0011', customer: 'Jane Smith', status: 'production', total: 'Rp 330.000' },
-    { id: 'ORD-2026-0010', customer: 'Bob Wilson', status: 'sent', total: 'Rp 990.000' },
-];
-
-const activeSPK = [
-    { spk: 'SPK-2026-0042', product: 'Hutan Tropis 42mm', qty: 25, status: 'in_progress' },
-    { spk: 'SPK-2026-0041', product: 'Kaliandra 38mm', qty: 15, status: 'qc' },
-];
+import { Package, ShoppingCart, Factory, AlertTriangle, TrendingUp, Clock, Loader2 } from 'lucide-react';
+import { getInventoryStats, getLowStockProducts } from '@/lib/actions/inventory';
+import { getOrderStats, getOrders } from '@/lib/actions/orders';
+import { getProductionStats, getProductionRuns } from '@/lib/actions/production';
 
 const statusColors: Record<string, string> = {
     pending: 'bg-yellow-100 text-yellow-800',
@@ -43,7 +21,88 @@ const statusColors: Record<string, string> = {
 
 export default function DashboardPage() {
     const { profile, isSuperAdmin } = useAuth();
-    const stats = isSuperAdmin ? statsData.superAdmin : statsData.workshopAdmin;
+    
+    const [loading, setLoading] = useState(true);
+    const [stats, setStats] = useState<any>(null);
+    const [recentOrders, setRecentOrders] = useState<any[]>([]);
+    const [activeSPK, setActiveSPK] = useState<any[]>([]);
+    const [lowStock, setLowStock] = useState<any[]>([]);
+
+    const fetchData = useCallback(async () => {
+        try {
+            setLoading(true);
+            const [
+                inventoryStats, 
+                orderStats, 
+                prodStats, 
+                allOrders, 
+                allRuns, 
+                lowStockProds
+            ] = await Promise.all([
+                getInventoryStats().catch(() => ({ totalProducts: 0, lowStockCount: 0 })),
+                getOrderStats().catch(() => ({ pending: 0, production: 0 })),
+                getProductionStats().catch(() => ({ inProgress: 0, inQC: 0, completed: 0 })),
+                getOrders().catch(() => []), 
+                getProductionRuns().catch(() => []),
+                getLowStockProducts().catch(() => [])
+            ]);
+
+            setStats({
+                inventory: inventoryStats,
+                orders: orderStats,
+                production: prodStats
+            });
+
+            // Top 5 recent orders
+            setRecentOrders(allOrders.slice(0, 5));
+            // Active SPK (in progress or qc)
+            setActiveSPK(allRuns.filter(r => r.status === 'in_progress' || r.status === 'qc').slice(0, 5));
+            // Low stock
+            setLowStock(lowStockProds.slice(0, 5));
+        } catch (error) {
+            console.error("Failed to load dashboard data", error);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (profile) {
+            fetchData();
+        }
+    }, [profile, fetchData]);
+
+    if (!profile || loading) {
+        return (
+            <div className="flex justify-center items-center h-full min-h-[400px]">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        );
+    }
+
+    const formatCurrency = (value: number) => {
+        return new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            minimumFractionDigits: 0,
+        }).format(value);
+    };
+
+    const statsData = {
+        superAdmin: [
+            { title: 'Total Products', value: stats?.inventory.totalProducts || '0', change: 'Active items', icon: Package, color: 'text-blue-500' },
+            { title: 'Active Orders', value: (stats?.orders.pending + stats?.orders.production) || '0', change: 'Needs processing', icon: ShoppingCart, color: 'text-green-500' },
+            { title: 'Production', value: (stats?.production.inProgress + stats?.production.inQC) || '0', change: 'Currently active', icon: Factory, color: 'text-purple-500' },
+            { title: 'Low Stock', value: stats?.inventory.lowStockCount || '0', change: 'Needs restock', icon: AlertTriangle, color: 'text-orange-500' },
+        ],
+        workshopAdmin: [
+            { title: 'My Tasks', value: stats?.production.inProgress || '0', change: 'Assigned to you', icon: Clock, color: 'text-blue-500' },
+            { title: 'In QC', value: stats?.production.inQC || '0', change: 'Waiting inspection', icon: Factory, color: 'text-purple-500' },
+            { title: 'Completed Today', value: stats?.production.completed || '0', change: 'Total done', icon: TrendingUp, color: 'text-green-500' },
+        ],
+    };
+
+    const displayStats = isSuperAdmin ? statsData.superAdmin : statsData.workshopAdmin;
 
     return (
         <div className="space-y-6">
@@ -61,7 +120,7 @@ export default function DashboardPage() {
 
             {/* Stats Grid */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                {stats.map((stat) => (
+                {displayStats.map((stat) => (
                     <Card key={stat.title}>
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
                             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -87,20 +146,22 @@ export default function DashboardPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-4">
-                                {recentOrders.map((order) => (
+                                {recentOrders.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">No recent orders.</p>
+                                ) : recentOrders.map((order) => (
                                     <div
                                         key={order.id}
                                         className="flex items-center justify-between border-b pb-3 last:border-0 last:pb-0"
                                     >
                                         <div>
-                                            <p className="font-medium">{order.id}</p>
-                                            <p className="text-sm text-muted-foreground">{order.customer}</p>
+                                            <p className="font-medium">{order.order_number}</p>
+                                            <p className="text-sm text-muted-foreground">{order.customer_snapshot?.name || 'Customer'}</p>
                                         </div>
                                         <div className="text-right">
-                                            <Badge className={statusColors[order.status]} variant="secondary">
+                                            <Badge className={statusColors[order.status] || ''} variant="secondary">
                                                 {order.status}
                                             </Badge>
-                                            <p className="text-sm font-medium mt-1">{order.total}</p>
+                                            <p className="text-sm font-medium mt-1">{formatCurrency(order.total_amount || 0)}</p>
                                         </div>
                                     </div>
                                 ))}
@@ -119,18 +180,20 @@ export default function DashboardPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
-                            {activeSPK.map((spk) => (
+                            {activeSPK.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">No active production runs.</p>
+                            ) : activeSPK.map((spk) => (
                                 <div
-                                    key={spk.spk}
+                                    key={spk.id}
                                     className="flex items-center justify-between border-b pb-3 last:border-0 last:pb-0"
                                 >
                                     <div>
-                                        <p className="font-medium">{spk.spk}</p>
+                                        <p className="font-medium">{spk.spk_number}</p>
                                         <p className="text-sm text-muted-foreground">
-                                            {spk.product} × {spk.qty}
+                                            Qty: {spk.quantity_planned}
                                         </p>
                                     </div>
-                                    <Badge className={statusColors[spk.status]} variant="secondary">
+                                    <Badge className={statusColors[spk.status] || ''} variant="secondary">
                                         {spk.status.replace('_', ' ')}
                                     </Badge>
                                 </div>
@@ -151,18 +214,14 @@ export default function DashboardPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-sm">Hutan Tropis 38mm</span>
-                                    <Badge variant="destructive">2 left</Badge>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-sm">Kaliandra Card Holder</span>
-                                    <Badge variant="destructive">4 left</Badge>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-sm">Monokrom Phone Case</span>
-                                    <Badge variant="destructive">1 left</Badge>
-                                </div>
+                                {lowStock.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">All stocks are good.</p>
+                                ) : lowStock.map(p => (
+                                    <div key={p.id} className="flex items-center justify-between">
+                                        <span className="text-sm">{p.name} {p.variant ? `(${p.variant})` : ''}</span>
+                                        <Badge variant="destructive">{p.current_stock} left</Badge>
+                                    </div>
+                                ))}
                             </div>
                         </CardContent>
                     </Card>

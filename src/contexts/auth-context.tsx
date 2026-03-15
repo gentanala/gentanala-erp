@@ -26,34 +26,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const supabase = createClient();
 
     useEffect(() => {
-        async function getProfile() {
-            // Only set demo profile if they haven't manually logged out
-            const loggedOut = localStorage.getItem('demo_logged_out') === 'true';
+        let mounted = true;
 
-            if (!loggedOut) {
-                setProfile({
-                    id: 'demo-user',
-                    email: 'admin@gentanala.com',
-                    full_name: 'Super Admin',
-                    role: 'super_admin',
-                    avatar_url: null,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
-                });
+        async function initAuth() {
+            const isDemo = process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') || !process.env.NEXT_PUBLIC_SUPABASE_URL;
+            
+            if (isDemo) {
+                const loggedOut = localStorage.getItem('demo_logged_out') === 'true';
+                if (!loggedOut && mounted) {
+                    setProfile({
+                        id: 'demo-user',
+                        email: 'admin@gentanala.com',
+                        full_name: 'Super Admin',
+                        role: 'super_admin',
+                        avatar_url: null,
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                    });
+                } else if (mounted) {
+                    setProfile(null);
+                }
+                if (mounted) setLoading(false);
+                return;
             }
-            setLoading(false);
+
+            // Real DB Logic: check current active session first
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user && mounted) {
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', session.user.id)
+                    .single();
+
+                if (mounted) setProfile(profile || null);
+            } else if (mounted) {
+                setProfile(null);
+            }
+            if (mounted) setLoading(false);
         }
 
-        getProfile();
+        initAuth();
 
-        // Skip auth state listener in demo mode to avoid fetch errors
-        const isDemo = process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder');
+        const isDemo = process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') || !process.env.NEXT_PUBLIC_SUPABASE_URL;
         if (isDemo) return;
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event: string, session: any) => {
                 if (event === 'SIGNED_OUT') {
-                    setProfile(null);
+                    if (mounted) setProfile(null);
                 } else if (session?.user) {
                     const { data: profile } = await supabase
                         .from('profiles')
@@ -61,13 +82,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         .eq('id', session.user.id)
                         .single();
 
-                    setProfile(profile);
+                    if (mounted) setProfile(profile || null);
                 }
-                setLoading(false);
+                if (mounted) setLoading(false);
             }
         );
 
         return () => {
+            mounted = false;
             subscription.unsubscribe();
         };
     }, [supabase]);

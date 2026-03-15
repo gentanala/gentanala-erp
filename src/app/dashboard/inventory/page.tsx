@@ -152,10 +152,11 @@ export default function InventoryPage() {
                 await createProduct(data);
                 toast.success('Produk berhasil ditambahkan');
             }
-            handleRefresh();
+            await handleRefresh();
         } catch (error: any) {
             console.error('Failed to save product:', error);
             toast.error(error.message || 'Gagal menyimpan produk');
+            throw error;
         }
     };
 
