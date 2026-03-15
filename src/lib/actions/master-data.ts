@@ -24,7 +24,7 @@ export async function getMaterials(): Promise<MasterMaterial[]> {
     // Map Database rows to MasterMaterial
     return (data || []).map(d => ({
         id: d.id,
-        sku: d.sku,
+        sku: d.code, // DB uses 'code'
         name: d.name,
         category: d.type as MaterialCategory, // 'raw', 'wip', 'finished'
         unit: d.unit,
@@ -39,7 +39,7 @@ export async function createMaterial(data: Omit<MasterMaterial, 'id'>): Promise<
     const { data: user } = await supabase.auth.getUser();
     
     const insertData = {
-        sku: data.sku,
+        code: data.sku, // DB uses 'code'
         name: data.name,
         type: data.category,
         unit: data.unit,
@@ -61,7 +61,7 @@ export async function createMaterial(data: Omit<MasterMaterial, 'id'>): Promise<
     
     return {
         id: dbData.id,
-        sku: dbData.sku,
+        sku: dbData.code, // DB uses 'code'
         name: dbData.name,
         category: dbData.type as MaterialCategory,
         unit: dbData.unit,
@@ -76,7 +76,7 @@ export async function updateMaterial(id: string, data: Partial<MasterMaterial>):
         updated_at: new Date().toISOString()
     };
     
-    if (data.sku) updateData.sku = data.sku;
+    if (data.sku) updateData.code = data.sku; // DB uses 'code'
     if (data.name) updateData.name = data.name;
     if (data.category) updateData.type = data.category;
     if (data.unit) updateData.unit = data.unit;
@@ -137,9 +137,9 @@ export async function getProductsWithBOM(): Promise<MasterProduct[]> {
             collection: p.collection || '',
             description: p.description || '',
             bom: productBoms.map(b => ({
-                materialSku: b.material?.sku || '', // Added materialSku
+                materialSku: b.material?.code || '', // DB uses 'code'
                 materialName: b.material?.name || 'Unknown',
-                qty: b.quantity
+                qty: b.quantity_required // DB uses 'quantity_required'
             }))
         };
     });
@@ -161,7 +161,7 @@ export async function updateProductBOM(productId: string, bom: {materialId: stri
         const inserts = bom.map(b => ({
             product_id: productId,
             material_id: b.materialId,
-            quantity: b.qty
+            quantity_required: b.qty // DB uses 'quantity_required'
         }));
         
         const { error: insErr } = await supabase
