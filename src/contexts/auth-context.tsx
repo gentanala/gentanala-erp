@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { Profile } from '@/lib/database.types';
+import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
     profile: Profile | null;
@@ -63,11 +64,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const isDemo = process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') || !process.env.NEXT_PUBLIC_SUPABASE_URL;
                 
                 if (isDemo) {
-                    const loggedOut = localStorage.getItem('demo_logged_out') === 'true';
+                    const loggedOut = window.localStorage.getItem('demo_logged_out') === 'true';
                     if (!loggedOut && mounted) {
                         setProfile(getEnrichedProfile(null, { id: 'demo-user', email: 'admin@gentanala.com' }));
                     }
-                    setLoading(false);
+                    if (mounted) setLoading(false);
                     return;
                 }
 
@@ -103,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         initAuth();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            async (event, session) => {
+            async (event: AuthChangeEvent, session: Session | null) => {
                 console.log('[Auth] Event:', event);
                 if (event === 'SIGNED_OUT') {
                     if (mounted) setProfile(null);
@@ -136,7 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.error("SignOut error:", err);
         }
         if (typeof window !== 'undefined') {
-            localStorage.clear();
+            window.localStorage.clear();
             window.location.href = '/auth/login';
         }
     };
