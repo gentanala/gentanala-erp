@@ -43,7 +43,10 @@ import {
     updateMaterial, 
     deleteMaterialAction,
     getProductsWithBOM,
-    updateProductBOM 
+    updateProductBOM,
+    getCollections,
+    createCollectionAction,
+    deleteCollectionAction 
 } from '@/lib/actions/master-data';
 import { createProduct, updateProduct, deleteProduct } from '@/lib/actions/inventory';
 
@@ -277,22 +280,18 @@ export default function SettingsPage() {
                 const savedBlueprints = localStorage.getItem('gentanala_master_blueprints');
                 if (savedBlueprints) setBlueprints(JSON.parse(savedBlueprints));
 
-                const savedCollections = localStorage.getItem('gentanala_master_collections');
-                if (savedCollections) {
-                    const deduplicate = <T extends { id: string }>(list: T[]): T[] => {
-                        const seen = new Set<string>();
-                        return list.map(item => {
-                            let newId = item.id;
-                            if (seen.has(newId)) {
-                                newId = newId + '-' + Math.random().toString(36).substr(2, 5);
-                            }
-                            seen.add(newId);
-                            return { ...item, id: newId };
-                        });
-                    };
-                    setCollections(deduplicate(JSON.parse(savedCollections)));
+                // Load Collections from database
+                const dbCollections = await getCollections();
+                if (dbCollections.length > 0) {
+                    setCollections(dbCollections);
                 } else {
-                    setCollections(DEMO_COLLECTIONS);
+                    // Fallback to local storage or demo if DB is empty
+                    const savedCollections = localStorage.getItem('gentanala_master_collections');
+                    if (savedCollections) {
+                        setCollections(JSON.parse(savedCollections));
+                    } else {
+                        setCollections(DEMO_COLLECTIONS);
+                    }
                 }
             } catch (error) {
                 console.error("Failed fetching master data from cloud", error);
@@ -628,16 +627,22 @@ export default function SettingsPage() {
                             {(newColForm || editingCollection) && (
                                 <CollectionForm
                                     collection={editingCollection}
-                                    onSave={(data) => {
-                                        if (editingCollection) {
-                                            setCollections(updateCollection(collections, editingCollection.id, data));
-                                            toast.success(`Updated '${data.name}'`);
-                                        } else {
-                                            setCollections(addCollection(collections, data as Omit<MasterCollection, 'id'>));
-                                            toast.success(`Added '${data.name}'`);
+                                    onSave={async (data) => {
+                                        try {
+                                            if (editingCollection) {
+                                                // For now, update stays local + localstorage until we add update action
+                                                setCollections(prev => prev.map(c => c.id === editingCollection.id ? { ...c, ...data } : c));
+                                                toast.success(`Updated '${data.name}' (Local)`);
+                                            } else {
+                                                const newCol = await createCollectionAction(data as Omit<MasterCollection, 'id'>);
+                                                setCollections(prev => [...prev, newCol]);
+                                                toast.success(`Added '${data.name}' to database`);
+                                            }
+                                            setNewColForm(false);
+                                            setEditingCollection(null);
+                                        } catch (err: any) {
+                                            toast.error('Gagal simpan collection: ' + err.message);
                                         }
-                                        setNewColForm(false);
-                                        setEditingCollection(null);
                                     }}
                                     onCancel={() => { setNewColForm(false); setEditingCollection(null); }}
                                 />
@@ -653,7 +658,17 @@ export default function SettingsPage() {
                                             <button onClick={() => { setEditingCollection(col); setNewColForm(false); }} className="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-blue-600">
                                                 <Pencil className="h-3.5 w-3.5" />
                                             </button>
-                                            <button onClick={() => { setCollections(deleteCollection(collections, col.id)); toast.success(`Deleted '${col.name}'`); }} className="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-red-600">
+                                            <button onClick={async () => { 
+                                                if (confirm(`Hapus collection '${col.name}'?`)) {
+                                                    try {
+                                                        await deleteCollectionAction(col.id);
+                                                        setCollections(prev => prev.filter(c => c.id !== col.id));
+                                                        toast.success(`Deleted '${col.name}'`);
+                                                    } catch (err: any) {
+                                                        toast.error('Gagal hapus: ' + err.message);
+                                                    }
+                                                }
+                                            }} className="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-red-600">
                                                 <Trash2 className="h-3.5 w-3.5" />
                                             </button>
                                         </div>

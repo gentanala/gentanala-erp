@@ -5,7 +5,8 @@ import { revalidatePath } from 'next/cache';
 import type { 
     MasterMaterial, 
     MasterProduct, 
-    MaterialCategory 
+    MaterialCategory,
+    MasterCollection
 } from '@/lib/master-data';
 
 // ============================================
@@ -174,3 +175,69 @@ export async function updateProductBOM(productId: string, bom: {materialId: stri
     revalidatePath('/dashboard/settings');
     revalidatePath('/dashboard/production');
 }
+
+// ============================================
+// COLLECTIONS
+// ============================================
+
+export async function getCollections(): Promise<MasterCollection[]> {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+        .from('master_collections')
+        .select('*')
+        .order('name');
+        
+    if (error) {
+        console.error("Error fetching collections:", error);
+        return [];
+    }
+    
+    return (data || []).map(d => ({
+        id: d.id,
+        name: d.name,
+        color: d.color || 'gray'
+    }));
+}
+
+export async function createCollectionAction(data: Omit<MasterCollection, 'id'>): Promise<MasterCollection> {
+    const supabase = await createClient();
+    
+    // Get user for created_by
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    const insertData = {
+        name: data.name,
+        color: data.color || 'gray',
+        created_by: user?.id || null
+    };
+    
+    const { data: dbData, error } = await supabase
+        .from('master_collections')
+        .insert(insertData)
+        .select()
+        .single();
+        
+    if (error) {
+        console.error("Error creating collection:", error);
+        throw error;
+    }
+    
+    revalidatePath('/dashboard/settings');
+    revalidatePath('/dashboard/inventory');
+    
+    return {
+        id: dbData.id,
+        name: dbData.name,
+        color: dbData.color
+    };
+}
+
+export async function deleteCollectionAction(id: string): Promise<void> {
+    const supabase = await createClient();
+    const { error } = await supabase.from('master_collections').delete().eq('id', id);
+    if (error) throw error;
+    
+    revalidatePath('/dashboard/settings');
+    revalidatePath('/dashboard/inventory');
+}
+

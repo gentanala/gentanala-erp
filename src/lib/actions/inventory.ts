@@ -74,7 +74,27 @@ export async function createProduct(product: CreateProductInput): Promise<Produc
 
     const {
         data: { user },
+        error: authError,
     } = await supabase.auth.getUser();
+
+    console.log('[createProduct] Auth result:', { 
+        userId: user?.id, 
+        email: user?.email, 
+        authError: authError?.message 
+    });
+
+    if (authError || !user) {
+        console.error('[createProduct] Auth check failed:', authError?.message || 'No user session');
+        throw new Error('Session expired. Silakan logout dan login kembali.');
+    }
+
+    // Debug: check profile
+    const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+    console.log('[createProduct] Profile check:', { profile, profileError: profileError?.message });
 
     const insertData = {
         sku: product.sku,
@@ -89,12 +109,17 @@ export async function createProduct(product: CreateProductInput): Promise<Produc
         min_stock_threshold: product.min_stock_threshold,
         image_urls: [],
         is_active: true,
-        created_by: user?.id || null,
+        created_by: user.id,
     };
 
     const { data, error } = await supabase.from('products').insert(insertData).select().single();
 
-    if (error) throw error;
+    if (error) {
+        if (error.code === '42501') {
+            throw new Error('Akses ditolak oleh database (RLS). Buka Supabase SQL Editor dan jalankan: INSERT INTO public.profiles (id, email, full_name, role) SELECT id, email, \'Super Admin\', \'super_admin\' FROM auth.users WHERE email = \'admin@gentanala.com\' ON CONFLICT (id) DO UPDATE SET role = \'super_admin\';');
+        }
+        throw error;
+    }
 
     revalidatePath('/dashboard/inventory');
     return data as unknown as Product;

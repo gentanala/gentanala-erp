@@ -11,6 +11,7 @@ import { StockMovementDialog } from '@/components/inventory/stock-movement-dialo
 import { useAuth } from '@/contexts/auth-context';
 import type { Product } from '@/lib/database.types';
 import { MasterCollection, DEMO_COLLECTIONS } from '@/lib/master-data';
+import { getCollections, createCollectionAction } from '@/lib/actions/master-data';
 import { getProducts, createProduct, updateProduct, getInventoryStats } from '@/lib/actions/inventory';
 import { toast } from 'sonner';
 
@@ -30,19 +31,25 @@ export default function InventoryPage() {
     const handleRefresh = useCallback(async () => {
         setLoading(true);
         try {
-            const [data, inventoryStats] = await Promise.all([
+            const [prods, cols, inventoryStats] = await Promise.all([
                 getProducts(),
+                getCollections(),
                 getInventoryStats()
             ]);
-            setProducts(data);
+            setProducts(prods);
             setStats(inventoryStats);
-
-            // Load collections from localStorage (consistent with Settings page)
-            const savedCollections = localStorage.getItem('gentanala_master_collections');
-            if (savedCollections) {
-                setCollections(JSON.parse(savedCollections));
+            
+            // Sync with master collections
+            if (cols && cols.length > 0) {
+                setCollections(cols);
             } else {
-                setCollections(DEMO_COLLECTIONS);
+                // Fallback to demo/local for now if db is still empty
+                const savedCollections = localStorage.getItem('gentanala_master_collections');
+                if (savedCollections) {
+                    setCollections(JSON.parse(savedCollections));
+                } else {
+                    setCollections(DEMO_COLLECTIONS);
+                }
             }
         } catch (error: any) {
             console.error('Failed to fetch inventory:', error);
@@ -157,22 +164,28 @@ export default function InventoryPage() {
                 await createProduct(data);
                 toast.success('Produk berhasil ditambahkan');
             }
-            await handleRefresh();
             
-            // If it's a new collection, add it to the master list in localStorage
+            // If it's a new collection, add it to the master table in database
             if (data.collection && data.collection !== 'none') {
-                const savedCollections = localStorage.getItem('gentanala_master_collections');
-                let currentCols = savedCollections ? JSON.parse(savedCollections) : [...DEMO_COLLECTIONS];
+                const currentCols = collections;
                 
                 if (!currentCols.find((c: any) => c.name === data.collection)) {
-                    const newCol = { id: `col-${Date.now()}`, name: data.collection, color: 'gray' };
-                    const updatedCols = [...currentCols, newCol];
-                    localStorage.setItem('gentanala_master_collections', JSON.stringify(updatedCols));
-                    setCollections(updatedCols);
+                    console.log('Detected new collection:', data.collection, '- persisting to DB...');
+                    try {
+                        await createCollectionAction({ name: data.collection, color: 'gray' });
+                        toast.success(`Collection '${data.collection}' saved to Master Data`);
+                    } catch (colErr) {
+                        console.error('Failed to save collection to DB:', colErr);
+                        // Still continue saving product even if collection persistence fails
+                    }
                 }
             }
+
+            await handleRefresh();
+            setEditingProduct(null); // Assuming setIsDialogOpen is meant to be setProductDialogOpen
+            setProductDialogOpen(false); // Corrected from setIsDialogOpen
         } catch (error: any) {
-            console.error('Failed to save product:', error);
+            console.error('Save error:', error);
             toast.error(error.message || 'Gagal menyimpan produk');
             throw error;
         }
