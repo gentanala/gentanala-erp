@@ -36,106 +36,130 @@ export async function getMaterials(): Promise<MasterMaterial[]> {
 }
 
 export async function createMaterial(data: Omit<MasterMaterial, 'id'>): Promise<MasterMaterial> {
-    const supabase = await createClient();
-    
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    const insertData: any = {
-        code: data.sku,
-        name: data.name,
-        unit: data.unit,
-        description: data.description || null,
-        created_by: user?.id || null,
-        min_stock_threshold: 5,
-        is_active: true,
-        cost_per_unit: 0,
-        current_stock: 0
-    };
-    
-    // Only add type if it's provided and we hope the column exists
-    if (data.category) insertData.type = data.category;
-    
-    const { data: dbData, error } = await supabase
-        .from('materials')
-        .insert(insertData)
-        .select()
-        .single();
+    try {
+        const supabase = await createClient();
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
         
-    if (error) {
-        console.error('[createMaterial] Error:', error);
-        throw error;
+        console.log('[createMaterial] Auth:', { user: user?.id, error: authError?.message });
+        
+        const insertData: any = {
+            code: data.sku,
+            name: data.name,
+            unit: data.unit,
+            description: data.description || null,
+            created_by: user?.id || null,
+            min_stock_threshold: 5,
+            is_active: true,
+            cost_per_unit: 0,
+            current_stock: 0
+        };
+        
+        if (data.category) insertData.type = data.category;
+        
+        console.log('[createMaterial] Inserting:', insertData);
+        
+        const { data: dbData, error } = await supabase
+            .from('materials')
+            .insert(insertData)
+            .select()
+            .single();
+            
+        if (error) {
+            console.error('[createMaterial] Database Error:', error);
+            throw new Error(`DB Error: ${error.message}`);
+        }
+        
+        console.log('[createMaterial] Success:', dbData.id);
+        
+        revalidatePath('/dashboard/settings');
+        revalidatePath('/dashboard/inventory');
+        revalidatePath('/dashboard/production');
+        
+        return {
+            id: dbData.id,
+            sku: dbData.code,
+            name: dbData.name,
+            category: (dbData.type || 'raw') as MaterialCategory,
+            unit: dbData.unit,
+            description: dbData.description || '',
+        };
+    } catch (e: any) {
+        console.error('[createMaterial] Catch-all Error:', e);
+        throw new Error(e.message || 'Gagal membuat material (Server Error 500)');
     }
-    
-    revalidatePath('/dashboard/settings');
-    revalidatePath('/dashboard/inventory');
-    revalidatePath('/dashboard/production');
-    
-    return {
-        id: dbData.id,
-        sku: dbData.code,
-        name: dbData.name,
-        category: (dbData.type || 'raw') as MaterialCategory,
-        unit: dbData.unit,
-        description: dbData.description || '',
-    };
 }
 
 export async function updateMaterial(id: string, data: Partial<MasterMaterial>): Promise<void> {
-    const supabase = await createClient();
-    
-    const updateData: any = {
-        updated_at: new Date().toISOString()
-    };
-    
-    if (data.sku !== undefined) updateData.code = data.sku;
-    if (data.name !== undefined) updateData.name = data.name;
-    if (data.category !== undefined) updateData.type = data.category;
-    if (data.unit !== undefined) updateData.unit = data.unit;
-    if (data.description !== undefined) updateData.description = data.description || null;
-    
-    console.log('[updateMaterial] Resilient update for ID:', id, 'Data:', updateData);
-    
-    // Try updating EVERYTHING first
-    const { data: result, error } = await supabase
-        .from('materials')
-        .update(updateData)
-        .eq('id', id)
-        .select()
-        .single();
+    try {
+        const supabase = await createClient();
+        console.log('[updateMaterial] Processing ID:', id);
         
-    if (error) {
-        // If it's a "column does not exist" error for 'type', try again without 'type'
-        if (error.message.includes('type') && error.message.includes('not exist')) {
-            console.warn('[updateMaterial] Column "type" missing, retrying without it...');
-            const { type, ...safeUpdateData } = updateData;
-            const { error: retryError } = await supabase
-                .from('materials')
-                .update(safeUpdateData)
-                .eq('id', id);
-            if (retryError) throw new Error(retryError.message);
-        } else {
-            console.error('[updateMaterial] Database Error:', error);
-            throw new Error(error.message || 'Update failed');
+        const updateData: any = {
+            updated_at: new Date().toISOString()
+        };
+        
+        if (data.sku !== undefined) updateData.code = data.sku;
+        if (data.name !== undefined) updateData.name = data.name;
+        if (data.category !== undefined) updateData.type = data.category;
+        if (data.unit !== undefined) updateData.unit = data.unit;
+        if (data.description !== undefined) updateData.description = data.description || null;
+        
+        const { error } = await supabase
+            .from('materials')
+            .update(updateData)
+            .eq('id', id);
+            
+        if (error) {
+            if (error.message.includes('type') && error.message.includes('not exist')) {
+                console.warn('[updateMaterial] Retrying without "type" column...');
+                const { type, ...safeUpdateData } = updateData;
+                const { error: retryError } = await supabase
+                    .from('materials')
+                    .update(safeUpdateData)
+                    .eq('id', id);
+                if (retryError) throw new Error(retryError.message);
+            } else {
+                throw error;
+            }
         }
+        
+        revalidatePath('/dashboard/settings');
+        revalidatePath('/dashboard/inventory');
+    } catch (e: any) {
+        console.error('[updateMaterial] Catch-all Error:', e);
+        throw new Error(e.message || 'Gagal update material (Server Error 500)');
     }
-    
-    revalidatePath('/dashboard/settings');
-    revalidatePath('/dashboard/inventory');
-    revalidatePath('/dashboard/production');
 }
 
 export async function deleteMaterialAction(id: string): Promise<void> {
-    const supabase = await createClient();
-    // Soft delete by setting is_active to false
-    const { error } = await supabase
-        .from('materials')
-        .update({ is_active: false })
-        .eq('id', id);
+    try {
+        const supabase = await createClient();
+        console.log('[deleteMaterialAction] ID:', id);
         
-    if (error) throw error;
-    
-    revalidatePath('/dashboard/settings');
-    revalidatePath('/dashboard/inventory');
+        const { error } = await supabase
+            .from('materials')
+            .update({ is_active: false })
+            .eq('id', id);
+            
+        if (error) throw error;
+        
+        revalidatePath('/dashboard/settings');
+        revalidatePath('/dashboard/inventory');
+    } catch (e: any) {
+        console.error('[deleteMaterialAction] Error:', e);
+        throw new Error(e.message || 'Gagal hapus material');
+    }
+}
+
+export async function getProfilesDiagnostic(): Promise<any[]> {
+    try {
+        const supabase = await createClient();
+        const { data, error } = await supabase.from('profiles').select('*');
+        if (error) throw error;
+        return data || [];
+    } catch (e: any) {
+        return [{ error: e.message }];
+    }
 }
 
 // ============================================
