@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             initRef.current = true;
 
             try {
-                console.log('[Auth] Initializing...');
+                console.log('[Auth] Initializing (Race Mode)...');
                 const isDemo = process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') || !process.env.NEXT_PUBLIC_SUPABASE_URL;
                 
                 if (isDemo) {
@@ -72,53 +72,74 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     return;
                 }
 
-                // Get session with a bit of retry/wait for hydration
-                const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-                
-                if (session?.user && mounted) {
-                    const { data: profileRecord } = await supabase
-                        .from('profiles')
-                        .select('*')
-                        .eq('id', session.user.id)
-                        .maybeSingle();
+                // Race getSession against a 5s timeout
+                const sessionPromise = supabase.auth.getSession();
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('TIMEOUT_GET_SESSION')), 5000)
+                );
 
-                    if (mounted) {
-                        setProfile(getEnrichedProfile(profileRecord || null, session.user));
+                try {
+                    const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]) as any;
+                    
+                    if (session?.user && mounted) {
+                        const { data: profileRecord } = await supabase
+                            .from('profiles')
+                            .select('*')
+                            .eq('id', session.user.id)
+                            .maybeSingle();
+
+                        if (mounted) {
+                            setProfile(getEnrichedProfile(profileRecord || null, session.user));
+                        }
                     }
+                } catch (raceErr: any) {
+                    console.warn('[Auth] Session retrieval failed or timed out:', raceErr.message);
+                    // Continue with null profile, allow loading to finish
                 }
             } catch (err) {
-                console.error("[Auth] Init Error:", err);
+                console.error("[Auth] Fatal Init Error:", err);
             } finally {
-                if (mounted) setLoading(false);
+                if (mounted) {
+                    console.log('[Auth] Loading finished');
+                    setLoading(false);
+                }
             }
         }
 
-        // 10s Safety Timeout for slow networks/Vercel edge
+        // 8s Global Safety Timeout (Secondary)
         const safetyTimer = setTimeout(() => {
             if (mounted && loading) {
-                console.warn("[Auth] TIMEOUT - Forcing finished state");
+                console.warn("[Auth] GLOBAL TIMEOUT - Breaking infinite loading");
                 setLoading(false);
             }
-        }, 10000);
+        }, 8000);
 
         initAuth();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event: AuthChangeEvent, session: Session | null) => {
                 console.log('[Auth] Event:', event);
-                if (event === 'SIGNED_OUT') {
+                
+                if (event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
                     if (mounted) setProfile(null);
-                } else if (session?.user) {
-                    const { data: profileRecord } = await supabase
-                        .from('profiles')
-                        .select('*')
-                        .eq('id', session.user.id)
-                        .maybeSingle();
+                }
+                
+                if (session?.user) {
+                    try {
+                        const { data: profileRecord } = await supabase
+                            .from('profiles')
+                            .select('*')
+                            .eq('id', session.user.id)
+                            .maybeSingle();
 
-                    if (mounted) {
-                        setProfile(getEnrichedProfile(profileRecord || null, session.user));
+                        if (mounted) {
+                            setProfile(getEnrichedProfile(profileRecord || null, session.user));
+                        }
+                    } catch (e) {
+                        console.error('[Auth] Profile fetch failed on change:', e);
                     }
                 }
+                
                 if (mounted) setLoading(false);
             }
         );
@@ -138,6 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         if (typeof window !== 'undefined') {
             window.localStorage.clear();
+            window.sessionStorage.clear();
             window.location.href = '/auth/login';
         }
     };
