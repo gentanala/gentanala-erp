@@ -108,8 +108,10 @@ function StageEditor({
                     {index + 1}
                 </span>
                 <div className="flex-1 min-w-0">
-                    <p className="font-bold text-sm text-gray-900 truncate">{stage.name || 'Untitled'}</p>
-                    <p className="text-[10px] text-gray-500">{logicConfig.emoji} {logicConfig.label}</p>
+                    <p className="text-sm text-gray-900 truncate font-bold">{stage.name || 'Untitled'}</p>
+                    <p className="text-[10px] text-gray-500">
+                        {logicConfig ? `${logicConfig.emoji} ${logicConfig.label}` : '⚠️ Unknown Logic'}
+                    </p>
                 </div>
                 <button onClick={() => setExpanded(!expanded)} className="p-1.5 rounded-lg hover:bg-white/50">
                     {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
@@ -278,7 +280,14 @@ export default function SettingsPage() {
 
                 // Load Blueprints & Collections from localStorage for now (if no table exists yet)
                 const savedBlueprints = localStorage.getItem('gentanala_master_blueprints');
-                if (savedBlueprints) setBlueprints(JSON.parse(savedBlueprints));
+                if (savedBlueprints) {
+                    try {
+                        const parsed = JSON.parse(savedBlueprints);
+                        if (Array.isArray(parsed)) setBlueprints(parsed);
+                    } catch (e) {
+                        console.error("Failed parsing blueprints from localStorage", e);
+                    }
+                }
 
                 // Load Collections from database
                 const dbCollections = await getCollections();
@@ -288,7 +297,13 @@ export default function SettingsPage() {
                     // Fallback to local storage or demo if DB is empty
                     const savedCollections = localStorage.getItem('gentanala_master_collections');
                     if (savedCollections) {
-                        setCollections(JSON.parse(savedCollections));
+                        try {
+                            const parsed = JSON.parse(savedCollections);
+                            if (Array.isArray(parsed)) setCollections(parsed);
+                            else setCollections(DEMO_COLLECTIONS);
+                        } catch (e) {
+                            setCollections(DEMO_COLLECTIONS);
+                        }
                     } else {
                         setCollections(DEMO_COLLECTIONS);
                     }
@@ -714,8 +729,8 @@ export default function SettingsPage() {
                                         {bp.stages.length} stages · {bp.productType || 'Belum dikonfigurasi'}
                                     </p>
                                     <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                                        {bp.stages.map(s => (
-                                            <span key={s.id} className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${s.color.bg} ${s.color.text} ${s.color.border} border`}>
+                                        {bp.stages?.map?.(s => (
+                                            <span key={s.id} className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${s.color?.bg || 'bg-gray-50'} ${s.color?.text || 'text-gray-700'} ${s.color?.border || 'border-gray-200'} border`}>
                                                 {s.emoji} {s.name}
                                             </span>
                                         ))}

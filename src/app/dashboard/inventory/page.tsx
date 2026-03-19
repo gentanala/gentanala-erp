@@ -46,7 +46,13 @@ export default function InventoryPage() {
                 // Fallback to demo/local for now if db is still empty
                 const savedCollections = localStorage.getItem('gentanala_master_collections');
                 if (savedCollections) {
-                    setCollections(JSON.parse(savedCollections));
+                    try {
+                        const parsed = JSON.parse(savedCollections);
+                        if (Array.isArray(parsed)) setCollections(parsed);
+                        else setCollections(DEMO_COLLECTIONS);
+                    } catch (e) {
+                        setCollections(DEMO_COLLECTIONS);
+                    }
                 } else {
                     setCollections(DEMO_COLLECTIONS);
                 }
