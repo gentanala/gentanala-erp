@@ -15,6 +15,7 @@ import {
     Layers,
     Pencil,
     X,
+    RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -847,7 +848,9 @@ function MaterialForm({
     const [unit, setUnit] = useState(material?.unit || 'pcs');
     const [description, setDescription] = useState(material?.description || '');
     const [transformYields, setTransformYields] = useState<string[]>(material?.transformYields || []);
+    const [isSaving, setIsSaving] = useState(false);
 
+    // Yields should be anything that is NOT a raw material
     const possibleYields = (materials || []).filter(m => m.category !== 'raw' && m.sku !== sku);
 
     return (
@@ -920,9 +923,34 @@ function MaterialForm({
             </div>
 
             <div className="flex justify-end gap-2 pt-1">
-                <Button variant="outline" size="sm" onClick={onCancel} className="h-9">Batal</Button>
-                <Button size="sm" onClick={() => { if (name && sku) onSave({ name, sku, category, unit, description, transformYields: transformYields.length > 0 ? transformYields : undefined }); }} className="h-9 gap-1.5" disabled={!name || !sku}>
-                    <Save className="h-3.5 w-3.5" /> Simpan
+                <Button variant="outline" size="sm" onClick={onCancel} className="h-9" disabled={isSaving}>Batal</Button>
+                <Button 
+                    size="sm" 
+                    onClick={async () => { 
+                        if (!name.trim()) { toast.error("Nama harus diisi"); return; }
+                        if (!sku.trim()) { toast.error("SKU harus diisi"); return; }
+                        
+                        setIsSaving(true);
+                        try {
+                            await onSave({ 
+                                name: name.trim(), 
+                                sku: sku.trim(), 
+                                category, 
+                                unit: unit.trim() || 'pcs', 
+                                description: description.trim(), 
+                                transformYields: transformYields.length > 0 ? transformYields : undefined 
+                            });
+                        } catch (err) {
+                            // error is handled in parent toast, just stop loading
+                        } finally {
+                            setIsSaving(false);
+                        }
+                    }} 
+                    className="h-9 gap-1.5" 
+                    disabled={isSaving || !name.trim() || !sku.trim()}
+                >
+                    {isSaving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                    {isSaving ? 'Menyimpan...' : 'Simpan'}
                 </Button>
             </div>
         </div>

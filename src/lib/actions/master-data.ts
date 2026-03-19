@@ -37,7 +37,7 @@ export async function getMaterials(): Promise<MasterMaterial[]> {
 export async function createMaterial(data: Omit<MasterMaterial, 'id'>): Promise<MasterMaterial> {
     const supabase = await createClient();
     
-    const { data: user } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
     
     const insertData = {
         code: data.sku, // DB uses 'code'
@@ -45,7 +45,7 @@ export async function createMaterial(data: Omit<MasterMaterial, 'id'>): Promise<
         type: data.category,
         unit: data.unit,
         description: data.description || null,
-        created_by: user.user?.id || null,
+        created_by: user?.id || null,
         min_stock_threshold: 5 // Default
     };
     
