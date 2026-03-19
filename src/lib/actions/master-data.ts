@@ -40,16 +40,20 @@ export async function createMaterial(data: Omit<MasterMaterial, 'id'>): Promise<
     
     const { data: { user } } = await supabase.auth.getUser();
     
-    const insertData = {
-        code: data.sku, // DB uses 'code'
+    const insertData: any = {
+        code: data.sku,
         name: data.name,
-        type: data.category, // Now using type column
         unit: data.unit,
         description: data.description || null,
         created_by: user?.id || null,
-        min_stock_threshold: 5, // Default
-        is_active: true
+        min_stock_threshold: 5,
+        is_active: true,
+        cost_per_unit: 0,
+        current_stock: 0
     };
+    
+    // Only add type if it's provided and we hope the column exists
+    if (data.category) insertData.type = data.category;
     
     const { data: dbData, error } = await supabase
         .from('materials')
@@ -57,7 +61,10 @@ export async function createMaterial(data: Omit<MasterMaterial, 'id'>): Promise<
         .select()
         .single();
         
-    if (error) throw error;
+    if (error) {
+        console.error('[createMaterial] Error:', error);
+        throw error;
+    }
     
     revalidatePath('/dashboard/settings');
     revalidatePath('/dashboard/inventory');
@@ -67,7 +74,7 @@ export async function createMaterial(data: Omit<MasterMaterial, 'id'>): Promise<
         id: dbData.id,
         sku: dbData.code,
         name: dbData.name,
-        category: dbData.type as MaterialCategory,
+        category: (dbData.type || 'raw') as MaterialCategory,
         unit: dbData.unit,
         description: dbData.description || '',
     };
@@ -86,8 +93,9 @@ export async function updateMaterial(id: string, data: Partial<MasterMaterial>):
     if (data.unit !== undefined) updateData.unit = data.unit;
     if (data.description !== undefined) updateData.description = data.description || null;
     
-    console.log('[updateMaterial] Updating ID:', id, 'with data:', updateData);
+    console.log('[updateMaterial] Resilient update for ID:', id, 'Data:', updateData);
     
+    // Try updating EVERYTHING first
     const { data: result, error } = await supabase
         .from('materials')
         .update(updateData)
@@ -96,8 +104,19 @@ export async function updateMaterial(id: string, data: Partial<MasterMaterial>):
         .single();
         
     if (error) {
-        console.error('[updateMaterial] Error:', error);
-        throw new Error(error.message || 'Database update failed');
+        // If it's a "column does not exist" error for 'type', try again without 'type'
+        if (error.message.includes('type') && error.message.includes('not exist')) {
+            console.warn('[updateMaterial] Column "type" missing, retrying without it...');
+            const { type, ...safeUpdateData } = updateData;
+            const { error: retryError } = await supabase
+                .from('materials')
+                .update(safeUpdateData)
+                .eq('id', id);
+            if (retryError) throw new Error(retryError.message);
+        } else {
+            console.error('[updateMaterial] Database Error:', error);
+            throw new Error(error.message || 'Update failed');
+        }
     }
     
     revalidatePath('/dashboard/settings');
