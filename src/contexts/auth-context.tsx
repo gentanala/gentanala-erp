@@ -64,8 +64,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         .eq('id', session.user.id)
                         .single();
 
-                    if (profileError) console.warn("Profile fetch error:", profileError.message);
-                    if (mounted) setProfile(profile || null);
+                    if (profileError) {
+                        console.error("Profile fetch error for user:", session.user.id, profileError.message);
+                        if (mounted) setProfile(null);
+                    } else if (mounted) {
+                        setProfile(profile || null);
+                    }
                 } else if (mounted) {
                     setProfile(null);
                 }
@@ -120,12 +124,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         window.location.href = '/auth/login';
     };
 
-    const isSuperAdmin = profile?.role === 'super_admin' || !profile; // Fallback to true if no profile but logged in (or just finished loading)
+    const isSuperAdmin = profile?.role === 'super_admin';
     const isWorkshopAdmin = profile?.role === 'workshop_admin';
     
     return (
         <AuthContext.Provider value={{ 
-            profile: profile || (!loading ? { email: 'admin@gentanala.com', full_name: 'Super Admin', role: 'super_admin' } as any : null), 
+            profile, 
             loading, 
             isSuperAdmin, 
             isWorkshopAdmin, 
