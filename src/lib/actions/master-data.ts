@@ -12,6 +12,9 @@ import type {
 // ============================================
 // MATERIALS
 // ============================================
+// DB columns: id, code, name, description, unit, cost_per_unit, current_stock, 
+//             min_stock_threshold, supplier_info, is_active, created_at, updated_at
+// NOTE: There is NO 'type' or 'category' column in the DB!
 
 export async function getMaterials(): Promise<MasterMaterial[]> {
     const supabase = await createClient();
@@ -27,7 +30,7 @@ export async function getMaterials(): Promise<MasterMaterial[]> {
         id: d.id,
         sku: d.code,
         name: d.name,
-        category: (d.type || d.category || 'raw') as MaterialCategory,
+        category: 'raw' as MaterialCategory, // DB has no category column, default to 'raw'
         unit: d.unit,
         description: d.description || '',
         transformYields: []
@@ -39,7 +42,8 @@ export async function createMaterial(data: Omit<MasterMaterial, 'id'>): Promise<
         const supabase = await createClient();
         const { data: { user } } = await supabase.auth.getUser();
         
-        const insertData: any = {
+        // Only use columns that actually exist in the DB
+        const insertData: Record<string, any> = {
             code: data.sku,
             name: data.name,
             unit: data.unit,
@@ -51,7 +55,7 @@ export async function createMaterial(data: Omit<MasterMaterial, 'id'>): Promise<
             current_stock: 0
         };
         
-        if (data.category) insertData.type = data.category;
+        console.log('[createMaterial] Inserting:', JSON.stringify(insertData));
         
         const { data: dbData, error } = await supabase
             .from('materials')
@@ -59,7 +63,12 @@ export async function createMaterial(data: Omit<MasterMaterial, 'id'>): Promise<
             .select()
             .single();
             
-        if (error) throw new Error(error.message);
+        if (error) {
+            console.error('[createMaterial] DB Error:', error.message, error.code);
+            throw new Error(error.message);
+        }
+        
+        console.log('[createMaterial] Success:', dbData.id);
         
         revalidatePath('/dashboard/settings');
         revalidatePath('/dashboard/inventory');
@@ -69,11 +78,12 @@ export async function createMaterial(data: Omit<MasterMaterial, 'id'>): Promise<
             id: dbData.id,
             sku: dbData.code,
             name: dbData.name,
-            category: (dbData.type || 'raw') as MaterialCategory,
+            category: 'raw' as MaterialCategory,
             unit: dbData.unit,
             description: dbData.description || '',
         };
     } catch (e: any) {
+        console.error('[createMaterial] Error:', e.message);
         throw new Error(e.message || 'Gagal membuat material');
     }
 }
@@ -81,29 +91,33 @@ export async function createMaterial(data: Omit<MasterMaterial, 'id'>): Promise<
 export async function updateMaterial(id: string, data: Partial<MasterMaterial>): Promise<void> {
     try {
         const supabase = await createClient();
-        const updateData: any = { updated_at: new Date().toISOString() };
+        
+        // Only use columns that actually exist in the DB!
+        // DB has: code, name, description, unit — NO 'type' or 'category'
+        const updateData: Record<string, any> = {
+            updated_at: new Date().toISOString()
+        };
         
         if (data.sku !== undefined) updateData.code = data.sku;
         if (data.name !== undefined) updateData.name = data.name;
-        if (data.category !== undefined) updateData.type = data.category;
         if (data.unit !== undefined) updateData.unit = data.unit;
         if (data.description !== undefined) updateData.description = data.description || null;
+        // NOTE: Intentionally NOT setting 'type' or 'category' — column does not exist!
+        
+        console.log('[updateMaterial] ID:', id, 'Data:', JSON.stringify(updateData));
         
         const { error } = await supabase.from('materials').update(updateData).eq('id', id);
             
         if (error) {
-            if (error.message.includes('type') && error.message.includes('not exist')) {
-                const { type, ...safeUpdateData } = updateData;
-                const { error: retryError } = await supabase.from('materials').update(safeUpdateData).eq('id', id);
-                if (retryError) throw new Error(retryError.message);
-            } else {
-                throw new Error(error.message);
-            }
+            console.error('[updateMaterial] DB Error:', error.message, error.code);
+            throw new Error(error.message);
         }
         
+        console.log('[updateMaterial] Success');
         revalidatePath('/dashboard/settings');
         revalidatePath('/dashboard/inventory');
     } catch (e: any) {
+        console.error('[updateMaterial] Error:', e.message);
         throw new Error(e.message || 'Gagal update material');
     }
 }
@@ -114,6 +128,7 @@ export async function deleteMaterialAction(id: string): Promise<void> {
         const { error } = await supabase.from('materials').update({ is_active: false }).eq('id', id);
         if (error) throw new Error(error.message);
         
+        console.log('[deleteMaterial] Success:', id);
         revalidatePath('/dashboard/settings');
         revalidatePath('/dashboard/inventory');
     } catch (e: any) {
@@ -127,14 +142,23 @@ export async function deleteMaterialAction(id: string): Promise<void> {
 
 export async function getProductsWithBOM(): Promise<MasterProduct[]> {
     const supabase = await createClient();
-    const { data: products, error: pErr } = await supabase.from('products').select('*').eq('is_active', true).order('name');
+    const { data: products, error: pErr } = await supabase
+        .from('products')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+        
     if (pErr) throw new Error(pErr.message);
     
     let boms: any[] = [];
     try {
-        const { data, error } = await supabase.from('product_materials').select('*, material:materials(id, name, type, unit)');
+        const { data, error } = await supabase
+            .from('product_materials')
+            .select('*, material:materials(id, name, code, unit)');
         if (!error && data) boms = data;
-    } catch (e) {}
+    } catch (e) {
+        console.error("BOM fetch failed:", e);
+    }
     
     return (products || []).map(p => {
         const productBoms = boms.filter(b => b.product_id === p.id);
