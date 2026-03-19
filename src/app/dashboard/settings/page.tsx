@@ -510,7 +510,13 @@ export default function SettingsPage() {
                                             setNewMatForm(false);
                                             setEditingMaterial(null);
                                         } catch (err: any) {
-                                            toast.error('Gagal menyimpan material: ' + err.message);
+                                            const msg = err.message || '';
+                                            if (msg.includes('row-level security') || msg.includes('violates row-level security')) {
+                                                toast.error('AKSES DITOLAK (RLS): Database nolak perintah lu karena akun lu bukan Super Admin. Copy-paste SQL yang gue kasih tadi ya bro!');
+                                            } else {
+                                                toast.error('Gagal menyimpan material: ' + msg);
+                                            }
+                                            throw err; // Re-throw to keep the isSaving state true in the form until error is shown
                                         }
                                     }}
                                     onCancel={() => { setNewMatForm(false); setEditingMaterial(null); }}
