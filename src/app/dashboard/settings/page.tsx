@@ -98,20 +98,18 @@ function StageEditor({
     isLast?: boolean;
 }) {
     const [expanded, setExpanded] = useState(false);
-    const logicConfig = STAGE_LOGIC_CONFIG[stage.logicType];
+    const logicConfig = stage?.logicType ? STAGE_LOGIC_CONFIG[stage.logicType] : null;
 
     return (
-        <div className={`rounded-xl border-2 p-4 transition-all ${stage.color.border} ${stage.color.bg}`}>
+        <div className={`rounded-xl border-2 p-4 transition-all ${stage.color?.border || 'border-gray-200'} ${stage.color?.bg || 'bg-gray-50'}`}>
             <div className="flex items-center gap-3">
                 <GripVertical className="h-5 w-5 text-gray-300 cursor-grab shrink-0" />
-                <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold ${stage.color.text} bg-white border ${stage.color.border}`}>
+                <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold ${stage.color?.text || 'text-gray-900'} bg-white border ${stage.color?.border || 'border-gray-200'}`}>
                     {index + 1}
                 </span>
                 <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-900 truncate font-bold">{stage.name || 'Untitled'}</p>
-                    <p className="text-[10px] text-gray-500">
-                        {logicConfig ? `${logicConfig.emoji} ${logicConfig.label}` : '⚠️ Unknown Logic'}
-                    </p>
+                    <p className="text-sm text-gray-900 truncate font-bold">{stage?.name || 'Untitled'}</p>
+                    <p className="text-[10px] text-gray-500">{logicConfig ? `${logicConfig.emoji} ${logicConfig.label}` : '📋 Passthrough'}</p>
                 </div>
                 <button onClick={() => setExpanded(!expanded)} className="p-1.5 rounded-lg hover:bg-white/50">
                     {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
@@ -726,7 +724,7 @@ export default function SettingsPage() {
                                 <div>
                                     <p className="font-bold text-sm">{bp.name}</p>
                                     <p className="text-xs text-gray-500">
-                                        {bp.stages.length} stages · {bp.productType || 'Belum dikonfigurasi'}
+                                        {(bp.stages || []).length} stages · {bp.productType || 'Belum dikonfigurasi'}
                                     </p>
                                     <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                                         {bp.stages?.map?.(s => (
