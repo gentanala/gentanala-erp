@@ -26,13 +26,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const supabase = createClient();
 
     // Helper to synthesize/fallback profile roles
-    const getEnrichedProfile = (baseProfile: Profile | null, userEmail: string | undefined): Profile | null => {
-        if (!userEmail) return baseProfile;
+    const getEnrichedProfile = (baseProfile: Profile | null, user: any): Profile | null => {
+        if (!user) return baseProfile;
         
-        const email = userEmail.toLowerCase();
+        const email = user.email?.toLowerCase() || '';
         let role = baseProfile?.role || null;
         
-        // Hardcoded fallbacks for critical accounts if DB is acting up or profile is missing
+        // Hardcoded fallbacks for critical accounts
         if (!role) {
             if (email === 'admin@gentanala.com') role = 'super_admin';
             else if (email === 'workshop@gentanala.com') role = 'workshop_admin';
@@ -40,12 +40,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (baseProfile) return { ...baseProfile, role } as Profile;
         
-        // Synthesize a profile if one doesn't exist in DB yet
         return {
-            id: 'temp-' + Math.random().toString(36).substr(2, 9),
+            id: user.id || 'unknown',
             email: email,
-            full_name: email.split('@')[0],
-            role: role || 'workshop_admin', // Default to workshop if unknown but logged in
+            full_name: email.split('@')[0] || 'User',
+            role: role || 'workshop_admin',
             avatar_url: null,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -57,79 +56,92 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         async function initAuth() {
             try {
+                console.log('[AuthContext] Initializing...');
                 const isDemo = process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') || !process.env.NEXT_PUBLIC_SUPABASE_URL;
                 
                 if (isDemo) {
+                    console.log('[AuthContext] Demo mode detected');
                     const loggedOut = localStorage.getItem('demo_logged_out') === 'true';
                     if (!loggedOut && mounted) {
-                        setProfile(getEnrichedProfile({
-                            id: 'demo-user',
-                            email: 'admin@gentanala.com',
-                            full_name: 'Super Admin',
-                            role: 'super_admin',
-                            avatar_url: null,
-                            created_at: new Date().toISOString(),
-                            updated_at: new Date().toISOString(),
-                        }, 'admin@gentanala.com'));
-                    } else if (mounted) {
-                        setProfile(null);
+                        setProfile(getEnrichedProfile(null, { id: 'demo-user', email: 'admin@gentanala.com' }));
                     }
                     setLoading(false);
                     return;
                 }
 
-                // Real DB Logic
-                const { data: { session } } = await supabase.auth.getSession();
+                const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+                if (sessionError) console.error('[AuthContext] Session error:', sessionError);
                 
                 if (session?.user && mounted) {
-                    const { data: profileRecord } = await supabase
+                    console.log('[AuthContext] Session found for:', session.user.id);
+                    const { data: profileRecord, error: profileError } = await supabase
                         .from('profiles')
                         .select('*')
                         .eq('id', session.user.id)
-                        .single();
+                        .maybeSingle();
+
+                    if (profileError) console.error('[AuthContext] Profile error:', profileError);
 
                     if (mounted) {
-                        setProfile(getEnrichedProfile(profileRecord || null, session.user.email));
+                        const enriched = getEnrichedProfile(profileRecord || null, session.user);
+                        console.log('[AuthContext] Profile loaded:', enriched?.role);
+                        setProfile(enriched);
                     }
                 } else if (mounted) {
+                    console.log('[AuthContext] No session found');
                     setProfile(null);
                 }
             } catch (err) {
-                console.error("Auth init error:", err);
+                console.error("[AuthContext] Fatal init error:", err);
             } finally {
-                if (mounted) setLoading(false);
+                if (mounted) {
+                    console.log('[AuthContext] Loading finished');
+                    setLoading(false);
+                }
             }
         }
 
-        initAuth();
+        // Safety timeout to ensure we don't hang forever
+        const safetyTimer = setTimeout(() => {
+            if (mounted && loading) {
+                console.warn("[AuthContext] Init timed out (5s), forcing loading finished");
+                setLoading(false);
+            }
+        }, 5000);
 
-        const isDemo = process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') || !process.env.NEXT_PUBLIC_SUPABASE_URL;
-        if (isDemo) return;
+        initAuth();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event: string, session: any) => {
+                console.log('[AuthContext] Auth state change:', event);
                 if (event === 'SIGNED_OUT') {
-                    if (mounted) setProfile(null);
+                    if (mounted) {
+                        setProfile(null);
+                        setLoading(false);
+                    }
                 } else if (session?.user) {
                     const { data: profileRecord } = await supabase
                         .from('profiles')
                         .select('*')
                         .eq('id', session.user.id)
-                        .single();
+                        .maybeSingle();
 
                     if (mounted) {
-                        setProfile(getEnrichedProfile(profileRecord || null, session.user.email));
+                        setProfile(getEnrichedProfile(profileRecord || null, session.user));
+                        setLoading(false);
                     }
+                } else if (mounted) {
+                    setLoading(false);
                 }
-                if (mounted) setLoading(false);
             }
         );
 
         return () => {
             mounted = false;
+            clearTimeout(safetyTimer);
             if (subscription) subscription.unsubscribe();
         };
-    }, [supabase]);
+    }, []);
 
     const signOut = async () => {
         try {
