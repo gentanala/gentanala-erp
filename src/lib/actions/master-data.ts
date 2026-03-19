@@ -123,16 +123,20 @@ export async function getProductsWithBOM(): Promise<MasterProduct[]> {
         
     if (pErr) throw pErr;
     
-    // Get all bill of materials
-    const { data: boms, error: bErr } = await supabase
-        .from('product_materials')
-        .select('*, material:materials(id, name, type, unit)');
-        
-    if (bErr) throw bErr;
+    // Get all bill of materials - wrap in try-catch to be resilient
+    let boms: any[] = [];
+    try {
+        const { data, error } = await supabase
+            .from('product_materials')
+            .select('*, material:materials(id, name, type, unit)');
+        if (!error && data) boms = data;
+    } catch (e) {
+        console.error("BOM fetch failed, returning products without BOM:", e);
+    }
     
     // Merge them
     return (products || []).map(p => {
-        const productBoms = (boms || []).filter(b => b.product_id === p.id);
+        const productBoms = boms.filter(b => b.product_id === p.id);
         
         return {
             id: p.id,
@@ -141,9 +145,9 @@ export async function getProductsWithBOM(): Promise<MasterProduct[]> {
             collection: p.collection || '',
             description: p.description || '',
             bom: productBoms.map(b => ({
-                materialSku: b.material?.code || '', // DB uses 'code'
+                materialSku: b.material?.code || '',
                 materialName: b.material?.name || 'Unknown',
-                qty: b.quantity_required // DB uses 'quantity_required'
+                qty: b.quantity_required
             }))
         };
     });
@@ -243,5 +247,7 @@ export async function deleteCollectionAction(id: string): Promise<void> {
     
     revalidatePath('/dashboard/settings');
     revalidatePath('/dashboard/inventory');
+    revalidatePath('/dashboard/production');
+    revalidatePath('/dashboard');
 }
 
