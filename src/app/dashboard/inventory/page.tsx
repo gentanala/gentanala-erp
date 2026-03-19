@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/auth-context';
 import type { Product } from '@/lib/database.types';
 import { MasterCollection, DEMO_COLLECTIONS } from '@/lib/master-data';
 import { getCollections, createCollectionAction } from '@/lib/actions/master-data';
-import { getProducts, createProduct, updateProduct, getInventoryStats } from '@/lib/actions/inventory';
+import { getProducts, createProduct, updateProduct, deleteProduct, getInventoryStats } from '@/lib/actions/inventory';
 import { toast } from 'sonner';
 
 export default function InventoryPage() {
@@ -43,18 +43,23 @@ export default function InventoryPage() {
             if (cols && cols.length > 0) {
                 setCollections(cols);
             } else {
-                // Fallback to demo/local for now if db is still empty
-                const savedCollections = localStorage.getItem('gentanala_master_collections');
-                if (savedCollections) {
-                    try {
-                        const parsed = JSON.parse(savedCollections);
-                        if (Array.isArray(parsed)) setCollections(parsed);
-                        else setCollections(DEMO_COLLECTIONS);
-                    } catch (e) {
+                // ONLY fallback to demo/local IF we haven't successfully loaded from DB before or if it's the very first time
+                // If it's a valid empty response, we should respect it
+                if (!isLoaded) {
+                    const savedCollections = localStorage.getItem('gentanala_master_collections');
+                    if (savedCollections) {
+                        try {
+                            const parsed = JSON.parse(savedCollections);
+                            if (Array.isArray(parsed)) setCollections(parsed);
+                            else setCollections(DEMO_COLLECTIONS);
+                        } catch (e) {
+                            setCollections(DEMO_COLLECTIONS);
+                        }
+                    } else {
                         setCollections(DEMO_COLLECTIONS);
                     }
                 } else {
-                    setCollections(DEMO_COLLECTIONS);
+                    setCollections([]);
                 }
             }
         } catch (error: any) {
@@ -103,8 +108,9 @@ export default function InventoryPage() {
                 count++;
             }
             toast.success(`${count} data berhasil dipindahin ke database!`, { id: 'migration' });
-            // Optionally clear local storage to avoid double migration
-            // localStorage.removeItem('gentanala_inventory_products');
+            // Clear local storage after successful migration
+            localStorage.removeItem('gentanala_inventory_products');
+            localStorage.removeItem('gentanala_master_collections');
             handleRefresh();
         } catch (err) {
             toast.error("Waduh, gagal mindahin data. Coba lagi bray!", { id: 'migration' });
@@ -148,16 +154,32 @@ export default function InventoryPage() {
         setStockDialogOpen(true);
     };
 
-    const handleDelete = (product: Product) => {
+    const handleDelete = async (product: Product) => {
         if (confirm(`Are you sure you want to delete ${product.name} (${product.sku})?`)) {
-            // In a real app, you'd call deleteProduct(product.id)
-            setProducts(products.filter(p => p.id !== product.id));
+            try {
+                await deleteProduct(product.id);
+                setProducts(products.filter(p => p.id !== product.id));
+                toast.success(`Produk '${product.name}' berhasil dihapus`);
+                handleRefresh();
+            } catch (err: any) {
+                toast.error('Gagal menghapus produk: ' + err.message);
+            }
         }
     };
 
-    const handleBulkDelete = (productIds: string[]) => {
+    const handleBulkDelete = async (productIds: string[]) => {
         if (confirm(`Are you sure you want to delete ${productIds.length} selected products?`)) {
-            setProducts(products.filter(p => !productIds.includes(p.id)));
+            try {
+                // Sequentially or via a new bulk action
+                for (const id of productIds) {
+                    await deleteProduct(id);
+                }
+                setProducts(products.filter(p => !productIds.includes(p.id)));
+                toast.success(`${productIds.length} produk berhasil dihapus`);
+                handleRefresh();
+            } catch (err: any) {
+                toast.error('Gagal menghapus beberapa produk: ' + err.message);
+            }
         }
     };
 

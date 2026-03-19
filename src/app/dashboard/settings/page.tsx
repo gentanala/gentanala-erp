@@ -288,12 +288,15 @@ export default function SettingsPage() {
                 }
 
                 // Load Collections from database
-                const dbCollections = await getCollections().catch(e => { console.error(e); return [] as MasterCollection[]; });
+                const dbCollections = await getCollections().catch(e => { console.error(e); return null; });
                 if (dbCollections && dbCollections.length > 0) {
                     setCollections(dbCollections);
+                } else if (dbCollections && dbCollections.length === 0) {
+                    // It's a valid empty list from DB, respect it
+                    setCollections([]);
                 } else {
-                    // Fallback to local storage or demo
-                    if (typeof window !== 'undefined') {
+                    // Only if it failed (null) or first load, try fallback
+                    if (typeof window !== 'undefined' && !isLoaded) {
                         const savedCollections = localStorage.getItem('gentanala_master_collections');
                         if (savedCollections) {
                             try {
@@ -306,8 +309,8 @@ export default function SettingsPage() {
                         } else {
                             setCollections(DEMO_COLLECTIONS);
                         }
-                    } else {
-                        setCollections(DEMO_COLLECTIONS);
+                    } else if (isLoaded) {
+                        setCollections([]);
                     }
                 }
             } catch (err: any) {
