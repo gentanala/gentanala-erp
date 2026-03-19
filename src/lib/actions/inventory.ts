@@ -122,6 +122,7 @@ export async function createProduct(product: CreateProductInput): Promise<Produc
     }
 
     revalidatePath('/dashboard/inventory');
+    revalidatePath('/dashboard/settings');
     return data as unknown as Product;
 }
 
@@ -143,6 +144,7 @@ export async function updateProduct(id: string, updates: Partial<Product>): Prom
     if (error) throw error;
 
     revalidatePath('/dashboard/inventory');
+    revalidatePath('/dashboard/settings');
     revalidatePath(`/dashboard/inventory/${id}`);
     return data as unknown as Product;
 }
@@ -159,6 +161,7 @@ export async function deleteProduct(id: string): Promise<void> {
     if (error) throw error;
 
     revalidatePath('/dashboard/inventory');
+    revalidatePath('/dashboard/settings');
 }
 
 // ============================================

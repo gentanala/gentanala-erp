@@ -58,6 +58,7 @@ export async function createMaterial(data: Omit<MasterMaterial, 'id'>): Promise<
     if (error) throw error;
     
     revalidatePath('/dashboard/settings');
+    revalidatePath('/dashboard/inventory');
     revalidatePath('/dashboard/production');
     
     return {
@@ -91,6 +92,7 @@ export async function updateMaterial(id: string, data: Partial<MasterMaterial>):
     if (error) throw error;
     
     revalidatePath('/dashboard/settings');
+    revalidatePath('/dashboard/inventory');
     revalidatePath('/dashboard/production');
 }
 
@@ -101,6 +103,7 @@ export async function deleteMaterialAction(id: string): Promise<void> {
     if (error) throw error;
     
     revalidatePath('/dashboard/settings');
+    revalidatePath('/dashboard/inventory');
     revalidatePath('/dashboard/production');
 }
 
@@ -173,6 +176,7 @@ export async function updateProductBOM(productId: string, bom: {materialId: stri
     }
     
     revalidatePath('/dashboard/settings');
+    revalidatePath('/dashboard/inventory');
     revalidatePath('/dashboard/production');
 }
 
