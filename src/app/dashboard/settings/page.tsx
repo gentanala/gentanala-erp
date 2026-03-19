@@ -451,7 +451,7 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-2">
                     <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
                     <span className="text-[10px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded border border-slate-200 font-mono">
-                        VER: 2026-03-20 02:21 AM
+                        VER: 2026-03-20 06:30 AM
                     </span>
                 </div>
                 <p className="text-muted-foreground">Kelola workflow produksi, master data, dan konfigurasi sistem</p>
@@ -533,13 +533,18 @@ export default function SettingsPage() {
                                     material={editingMaterial}
                                     materials={materials || []}
                                     onSave={async (data) => {
+                                        console.log('[SettingsPage] onSave CALLED with:', JSON.stringify(data));
                                         try {
                                             if (editingMaterial) {
+                                                console.log('[SettingsPage] Calling updateMaterial for ID:', editingMaterial.id);
                                                 await updateMaterial(editingMaterial.id, data);
+                                                console.log('[SettingsPage] updateMaterial SUCCESS');
                                                 setMaterials((materials || []).map(m => m.id === editingMaterial.id ? { ...m, ...data } : m));
                                                 toast.success(`Updated '${data.name}'`);
                                             } else {
+                                                console.log('[SettingsPage] Calling createMaterial');
                                                 const newMat = await createMaterial(data);
+                                                console.log('[SettingsPage] createMaterial SUCCESS:', newMat.id);
                                                 setMaterials([...(materials || []), newMat]);
                                                 toast.success(`Added '${data.name}'`);
                                             }
@@ -547,9 +552,8 @@ export default function SettingsPage() {
                                             setEditingMaterial(null);
                                         } catch (err: any) {
                                             const msg = err?.message || String(err) || 'Unknown error';
-                                            console.error('[onSave material] Error:', err);
+                                            console.error('[SettingsPage] onSave ERROR:', msg, err);
                                             toast.error(`Gagal simpan: ${msg}`);
-                                            throw err; // Re-throw so form stays showing
                                         }
                                     }}
                                     onCancel={() => { setNewMatForm(false); setEditingMaterial(null); }}
@@ -888,7 +892,7 @@ function MaterialForm({
 }: {
     material: MasterMaterial | null;
     materials: MasterMaterial[];
-    onSave: (data: Partial<MasterMaterial> & { name: string; sku: string; category: MaterialCategory; unit: string; transformYields?: string[] }) => void;
+    onSave: (data: Partial<MasterMaterial> & { name: string; sku: string; category: MaterialCategory; unit: string; transformYields?: string[] }) => Promise<void>;
     onCancel: () => void;
 }) {
     const [name, setName] = useState(material?.name || '');
@@ -981,6 +985,8 @@ function MaterialForm({
                         
                         setIsSaving(true);
                         try {
+                            console.log('[MaterialForm] Simpan CLICKED, calling onSave...');
+                            toast.loading('Menyimpan...', { id: 'material-save' });
                             await onSave({ 
                                 name: name.trim(), 
                                 sku: sku.trim(), 
@@ -989,8 +995,11 @@ function MaterialForm({
                                 description: description.trim(), 
                                 transformYields: transformYields.length > 0 ? transformYields : undefined 
                             });
-                        } catch (err) {
-                            // error is handled in parent toast, just stop loading
+                            toast.dismiss('material-save');
+                            console.log('[MaterialForm] onSave completed successfully');
+                        } catch (err: any) {
+                            toast.dismiss('material-save');
+                            console.error('[MaterialForm] onSave FAILED:', err);
                         } finally {
                             setIsSaving(false);
                         }
