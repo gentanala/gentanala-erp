@@ -448,7 +448,12 @@ export default function SettingsPage() {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+                <div className="flex items-center gap-2">
+                    <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+                    <span className="text-[10px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded border border-slate-200 font-mono">
+                        VER: 2026-03-20 02:21 AM
+                    </span>
+                </div>
                 <p className="text-muted-foreground">Kelola workflow produksi, master data, dan konfigurasi sistem</p>
             </div>
 
