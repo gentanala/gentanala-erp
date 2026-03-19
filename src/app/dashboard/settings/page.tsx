@@ -16,6 +16,7 @@ import {
     Pencil,
     X,
     RefreshCw,
+    LogOut,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,6 +48,7 @@ import {
     deleteCollectionAction 
 } from '@/lib/actions/master-data';
 import { createProduct, updateProduct, deleteProduct } from '@/lib/actions/inventory';
+import { useAuth } from '@/contexts/auth-context';
 
 // ==============================
 // STAGE EDITOR
@@ -247,6 +249,14 @@ type MasterDataTab = 'materials' | 'products' | 'collections';
 // ==============================
 
 export default function SettingsPage() {
+    const { profile, isSuperAdmin } = useAuth();
+
+    const handleForceLogout = () => {
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = '/auth/login';
+    };
+
     // Workflow state
     const [blueprints, setBlueprints] = useState<WorkflowBlueprint[]>([WATCH_BLUEPRINT]);
     const [selectedBpId, setSelectedBpId] = useState(WATCH_BLUEPRINT.id);
@@ -447,13 +457,26 @@ export default function SettingsPage() {
             {/* ========================================== */}
             <Card>
                 <CardHeader>
-                    <div className="flex items-center justify-between">
-                        <CardTitle className="flex items-center gap-2">
-                            <Database className="h-5 w-5" />
-                            Master Data
-                        </CardTitle>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <CardTitle className="flex items-center gap-2">
+                                <Database className="h-5 w-5" />
+                                Master Data
+                            </CardTitle>
+                            <p className="text-sm text-muted-foreground mt-1">Database material, produk, dan collection sebagai sumber data utama</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="flex flex-col items-end px-3 py-1.5 rounded-xl border border-blue-100 bg-white shadow-sm">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Role Aktif</span>
+                                <span className={`text-xs font-bold ${isSuperAdmin ? 'text-blue-600' : 'text-amber-600'}`}>
+                                    {profile?.role || 'Guest'} ({isSuperAdmin ? 'Super Admin' : 'Workshop Admin'})
+                                </span>
+                            </div>
+                            <Button variant="destructive" size="sm" onClick={handleForceLogout} className="h-10 rounded-xl gap-2 font-bold shadow-md hover:scale-105 transition-all">
+                                <LogOut className="h-4 w-4" /> Force Logout
+                            </Button>
+                        </div>
                     </div>
-                    <p className="text-sm text-muted-foreground">Database material, produk, dan collection sebagai sumber data utama</p>
                 </CardHeader>
                 <CardContent>
                     {/* Tabs */}
