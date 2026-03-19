@@ -27,6 +27,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <div className="fixed top-0 left-0 right-0 h-1 bg-red-600 z-[9999] opacity-50" />
+        <div className="fixed top-1 left-2 z-[9999] text-[8px] font-mono text-red-600 bg-white/80 px-1 rounded shadow-sm opacity-50 pointer-events-none">
+          DEPLOY: 2026-03-20 02:30 AM
+        </div>
         {children}
       </body>
     </html>
