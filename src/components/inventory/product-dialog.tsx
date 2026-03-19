@@ -38,6 +38,7 @@ export function ProductDialog({ open, onOpenChange, product, collections = [], o
     const isEdit = !!product;
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [showCustomCol, setShowCustomCol] = useState(false);
 
     const [formData, setFormData] = useState({
         sku: product?.sku || '',
@@ -150,30 +151,62 @@ export function ProductDialog({ open, onOpenChange, product, collections = [], o
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="collection">Collection</Label>
-                            {collections.length > 0 ? (
-                                <Select
-                                    value={formData.collection}
-                                    onValueChange={(value) => setFormData({ ...formData, collection: value })}
-                                    disabled={loading}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select Collection" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {collections.map(c => (
-                                            <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
-                                        ))}
-                                        <SelectItem value="none">No Collection</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                            {showCustomCol ? (
+                                <div className="flex gap-2">
+                                    <Input
+                                        id="collection"
+                                        placeholder="New Collection Name"
+                                        value={formData.collection === 'none' ? '' : formData.collection}
+                                        onChange={(e) => setFormData({ ...formData, collection: e.target.value })}
+                                        className="flex-1"
+                                        autoFocus
+                                    />
+                                    <Button 
+                                        type="button" 
+                                        variant="outline" 
+                                        size="sm" 
+                                        onClick={() => setShowCustomCol(false)}
+                                        className="px-2"
+                                    >
+                                        List
+                                    </Button>
+                                </div>
                             ) : (
-                                <Input
-                                    id="collection"
-                                    placeholder="Hutan Tropis"
-                                    value={formData.collection}
-                                    onChange={(e) => setFormData({ ...formData, collection: e.target.value })}
-                                    disabled={loading}
-                                />
+                                collections.length > 0 ? (
+                                    <Select
+                                        value={formData.collection}
+                                        onValueChange={(value) => {
+                                            if (value === '__new__') {
+                                                setShowCustomCol(true);
+                                                setFormData({ ...formData, collection: '' });
+                                            } else {
+                                                setFormData({ ...formData, collection: value });
+                                            }
+                                        }}
+                                        disabled={loading}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select Collection" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {collections.map(c => (
+                                                <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                                            ))}
+                                            <SelectItem value="none">No Collection</SelectItem>
+                                            <SelectItem value="__new__" className="text-blue-600 font-medium">
+                                                + Add New...
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                ) : (
+                                    <Input
+                                        id="collection"
+                                        placeholder="Hutan Tropis"
+                                        value={formData.collection}
+                                        onChange={(e) => setFormData({ ...formData, collection: e.target.value })}
+                                        disabled={loading}
+                                    />
+                                )
                             )}
                         </div>
                         <div className="space-y-2">

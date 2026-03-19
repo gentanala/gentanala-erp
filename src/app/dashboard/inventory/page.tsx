@@ -37,8 +37,13 @@ export default function InventoryPage() {
             setProducts(data);
             setStats(inventoryStats);
 
-            // Load collections (static for now, can be moved to Supabase later)
-            setCollections(DEMO_COLLECTIONS);
+            // Load collections from localStorage (consistent with Settings page)
+            const savedCollections = localStorage.getItem('gentanala_master_collections');
+            if (savedCollections) {
+                setCollections(JSON.parse(savedCollections));
+            } else {
+                setCollections(DEMO_COLLECTIONS);
+            }
         } catch (error: any) {
             console.error('Failed to fetch inventory:', error);
             toast.error('Gagal mengambil data inventory');
@@ -153,6 +158,19 @@ export default function InventoryPage() {
                 toast.success('Produk berhasil ditambahkan');
             }
             await handleRefresh();
+            
+            // If it's a new collection, add it to the master list in localStorage
+            if (data.collection && data.collection !== 'none') {
+                const savedCollections = localStorage.getItem('gentanala_master_collections');
+                let currentCols = savedCollections ? JSON.parse(savedCollections) : [...DEMO_COLLECTIONS];
+                
+                if (!currentCols.find((c: any) => c.name === data.collection)) {
+                    const newCol = { id: `col-${Date.now()}`, name: data.collection, color: 'gray' };
+                    const updatedCols = [...currentCols, newCol];
+                    localStorage.setItem('gentanala_master_collections', JSON.stringify(updatedCols));
+                    setCollections(updatedCols);
+                }
+            }
         } catch (error: any) {
             console.error('Failed to save product:', error);
             toast.error(error.message || 'Gagal menyimpan produk');
