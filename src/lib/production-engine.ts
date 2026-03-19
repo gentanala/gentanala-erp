@@ -88,12 +88,12 @@ export const WATCH_BLUEPRINT: WorkflowBlueprint = {
 
 export const DEMO_ITEMS: KanbanItem[] = [
     // Pre-loaded components in Assembly for testing
-    { id: 'test-comp-1', name: 'Casing Hutan Tropis', sku: 'WIP-CASE-HT', stageId: 'stg-assembly', quantity: 15, price: 0, collection: 'Hutan Tropis', thumbnailUrl: null, parentId: null, childIds: [], mergedFrom: [], status: 'active', salesChannel: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: 'test-comp-2', name: 'Strap Kulit Brown', sku: 'WIP-STRAP-BR', stageId: 'stg-assembly', quantity: 10, price: 0, collection: 'Hutan Tropis', thumbnailUrl: null, parentId: null, childIds: [], mergedFrom: [], status: 'active', salesChannel: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: 'test-comp-3', name: 'Mesin Miyota 2035', sku: 'RAW-MIYOTA-001', stageId: 'stg-assembly', quantity: 20, price: 0, collection: null, thumbnailUrl: null, parentId: null, childIds: [], mergedFrom: [], status: 'active', salesChannel: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: 'test-comp-4', name: 'Kaca Sapphire 42mm', sku: 'RAW-SAPH-42', stageId: 'stg-assembly', quantity: 12, price: 0, collection: null, thumbnailUrl: null, parentId: null, childIds: [], mergedFrom: [], status: 'active', salesChannel: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: 'test-comp-5', name: 'Crown Stainless', sku: 'RAW-CROWN-SS', stageId: 'stg-assembly', quantity: 30, price: 0, collection: null, thumbnailUrl: null, parentId: null, childIds: [], mergedFrom: [], status: 'active', salesChannel: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: 'test-comp-6', name: 'Buckle Stainless', sku: 'RAW-BUCKLE-SS', stageId: 'stg-assembly', quantity: 30, price: 0, collection: null, thumbnailUrl: null, parentId: null, childIds: [], mergedFrom: [], status: 'active', salesChannel: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: 'test-comp-1', name: 'Casing Hutan Tropis', sku: 'WIP-CASE-HT', stageId: 'stg-assembly', quantity: 15, price: 0, collection: 'Hutan Tropis', thumbnailUrl: null, parentId: null, childIds: [], mergedFrom: [], status: 'active', salesChannel: null, created_at: '2024-01-01T00:00:00.000Z', updated_at: '2024-01-01T00:00:00.000Z' },
+    { id: 'test-comp-2', name: 'Strap Kulit Brown', sku: 'WIP-STRAP-BR', stageId: 'stg-assembly', quantity: 10, price: 0, collection: 'Hutan Tropis', thumbnailUrl: null, parentId: null, childIds: [], mergedFrom: [], status: 'active', salesChannel: null, created_at: '2024-01-01T00:00:00.000Z', updated_at: '2024-01-01T00:00:00.000Z' },
+    { id: 'test-comp-3', name: 'Mesin Miyota 2035', sku: 'RAW-MIYOTA-001', stageId: 'stg-assembly', quantity: 20, price: 0, collection: null, thumbnailUrl: null, parentId: null, childIds: [], mergedFrom: [], status: 'active', salesChannel: null, created_at: '2024-01-01T00:00:00.000Z', updated_at: '2024-01-01T00:00:00.000Z' },
+    { id: 'test-comp-4', name: 'Kaca Sapphire 42mm', sku: 'RAW-SAPH-42', stageId: 'stg-assembly', quantity: 12, price: 0, collection: null, thumbnailUrl: null, parentId: null, childIds: [], mergedFrom: [], status: 'active', salesChannel: null, created_at: '2024-01-01T00:00:00.000Z', updated_at: '2024-01-01T00:00:00.000Z' },
+    { id: 'test-comp-5', name: 'Crown Stainless', sku: 'RAW-CROWN-SS', stageId: 'stg-assembly', quantity: 30, price: 0, collection: null, thumbnailUrl: null, parentId: null, childIds: [], mergedFrom: [], status: 'active', salesChannel: null, created_at: '2024-01-01T00:00:00.000Z', updated_at: '2024-01-01T00:00:00.000Z' },
+    { id: 'test-comp-6', name: 'Buckle Stainless', sku: 'RAW-BUCKLE-SS', stageId: 'stg-assembly', quantity: 30, price: 0, collection: null, thumbnailUrl: null, parentId: null, childIds: [], mergedFrom: [], status: 'active', salesChannel: null, created_at: '2024-01-01T00:00:00.000Z', updated_at: '2024-01-01T00:00:00.000Z' },
     {
         id: 'item-001',
         name: 'Balok Kayu Jati',
@@ -108,8 +108,8 @@ export const DEMO_ITEMS: KanbanItem[] = [
         mergedFrom: [],
         status: 'active',
         salesChannel: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: '2024-01-01T00:00:00.000Z',
+        updated_at: '2024-01-01T00:00:00.000Z',
     },
     {
         id: 'item-002',
@@ -125,8 +125,8 @@ export const DEMO_ITEMS: KanbanItem[] = [
         mergedFrom: [],
         status: 'active',
         salesChannel: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: '2024-01-01T00:00:00.000Z',
+        updated_at: '2024-01-01T00:00:00.000Z',
     },
     {
         id: 'item-003',
@@ -142,8 +142,8 @@ export const DEMO_ITEMS: KanbanItem[] = [
         mergedFrom: [],
         status: 'active',
         salesChannel: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: '2024-01-01T00:00:00.000Z',
+        updated_at: '2024-01-01T00:00:00.000Z',
     },
     {
         id: 'item-004',
@@ -159,8 +159,8 @@ export const DEMO_ITEMS: KanbanItem[] = [
         mergedFrom: [],
         status: 'active',
         salesChannel: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: '2024-01-01T00:00:00.000Z',
+        updated_at: '2024-01-01T00:00:00.000Z',
     },
     {
         id: 'item-005',
@@ -176,8 +176,8 @@ export const DEMO_ITEMS: KanbanItem[] = [
         mergedFrom: [],
         status: 'active',
         salesChannel: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: '2024-01-01T00:00:00.000Z',
+        updated_at: '2024-01-01T00:00:00.000Z',
     },
     {
         id: 'item-006',
@@ -193,8 +193,8 @@ export const DEMO_ITEMS: KanbanItem[] = [
         mergedFrom: [],
         status: 'active',
         salesChannel: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: '2024-01-01T00:00:00.000Z',
+        updated_at: '2024-01-01T00:00:00.000Z',
     },
     {
         id: 'item-007',
@@ -210,8 +210,8 @@ export const DEMO_ITEMS: KanbanItem[] = [
         mergedFrom: [],
         status: 'active',
         salesChannel: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: '2024-01-01T00:00:00.000Z',
+        updated_at: '2024-01-01T00:00:00.000Z',
     },
     {
         id: 'item-008',
@@ -227,8 +227,8 @@ export const DEMO_ITEMS: KanbanItem[] = [
         mergedFrom: [],
         status: 'active',
         salesChannel: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: '2024-01-01T00:00:00.000Z',
+        updated_at: '2024-01-01T00:00:00.000Z',
     },
     {
         id: 'item-009',
@@ -244,8 +244,8 @@ export const DEMO_ITEMS: KanbanItem[] = [
         mergedFrom: [],
         status: 'active',
         salesChannel: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: '2024-01-01T00:00:00.000Z',
+        updated_at: '2024-01-01T00:00:00.000Z',
     },
     {
         id: 'item-010',
@@ -261,8 +261,8 @@ export const DEMO_ITEMS: KanbanItem[] = [
         mergedFrom: [],
         status: 'active',
         salesChannel: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: '2024-01-01T00:00:00.000Z',
+        updated_at: '2024-01-01T00:00:00.000Z',
     },
 ];
 

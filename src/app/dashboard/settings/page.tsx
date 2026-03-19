@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
     Settings,
     Plus,
@@ -26,9 +26,6 @@ import { STAGE_LOGIC_CONFIG, SALES_CHANNEL_LABELS } from '@/lib/database.types';
 import { WATCH_BLUEPRINT } from '@/lib/production-engine';
 import {
     DEMO_COLLECTIONS,
-    addMaterial, deleteMaterial,
-    addProduct,
-    addCollection, updateCollection, deleteCollection,
 } from '@/lib/master-data';
 import type {
     MasterMaterial,
@@ -51,7 +48,7 @@ import {
 import { createProduct, updateProduct, deleteProduct } from '@/lib/actions/inventory';
 
 // ==============================
-// STAGE EDITOR (existing)
+// STAGE EDITOR
 // ==============================
 
 const STAGE_COLORS = [
@@ -101,14 +98,14 @@ function StageEditor({
     const logicConfig = stage?.logicType ? STAGE_LOGIC_CONFIG[stage.logicType] : null;
 
     return (
-        <div className={`rounded-xl border-2 p-4 transition-all ${stage.color?.border || 'border-gray-200'} ${stage.color?.bg || 'bg-gray-50'}`}>
+        <div className={`rounded-xl border-2 p-4 transition-all ${stage?.color?.border || 'border-gray-200'} ${stage?.color?.bg || 'border-gray-50'}`}>
             <div className="flex items-center gap-3">
                 <GripVertical className="h-5 w-5 text-gray-300 cursor-grab shrink-0" />
-                <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold ${stage.color?.text || 'text-gray-900'} bg-white border ${stage.color?.border || 'border-gray-200'}`}>
+                <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold ${stage?.color?.text || 'text-gray-900'} bg-white border ${stage?.color?.border || 'border-gray-200'}`}>
                     {index + 1}
                 </span>
                 <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-900 truncate font-bold">{stage?.name || 'Untitled'}</p>
+                    <p className="font-bold text-sm text-gray-900 truncate">{stage?.name || 'Untitled'}</p>
                     <p className="text-[10px] text-gray-500">{logicConfig ? `${logicConfig.emoji} ${logicConfig.label}` : '📋 Passthrough'}</p>
                 </div>
                 <button onClick={() => setExpanded(!expanded)} className="p-1.5 rounded-lg hover:bg-white/50">
@@ -131,11 +128,11 @@ function StageEditor({
                 <div className="mt-4 space-y-3 pl-8">
                     <div className="space-y-1">
                         <Label className="text-xs">Nama Stage</Label>
-                        <Input value={stage.name} onChange={e => onChange({ ...stage, name: e.target.value })} className="h-10 bg-white/80" />
+                        <Input value={stage?.name || ''} onChange={e => onChange({ ...stage, name: e.target.value })} className="h-10 bg-white/80" />
                     </div>
                     <div className="space-y-1">
                         <Label className="text-xs">Emoji</Label>
-                        <Input value={stage.emoji || ''} onChange={e => onChange({ ...stage, emoji: e.target.value })} className="h-10 bg-white/80 w-20" placeholder="📦" />
+                        <Input value={stage?.emoji || ''} onChange={e => onChange({ ...stage, emoji: e.target.value })} className="h-10 bg-white/80 w-20" placeholder="📦" />
                     </div>
                     <div className="space-y-1">
                         <Label className="text-xs">Tipe Logika</Label>
@@ -144,7 +141,7 @@ function StageEditor({
                                 <button
                                     key={opt.value}
                                     onClick={() => onChange({ ...stage, logicType: opt.value })}
-                                    className={`p-2.5 rounded-lg text-left transition-all ${stage.logicType === opt.value
+                                    className={`p-2.5 rounded-lg text-left transition-all ${stage?.logicType === opt.value
                                         ? 'bg-white border-2 border-gray-800 shadow-sm'
                                         : 'bg-white/50 border-2 border-transparent hover:bg-white/80'
                                         }`}
@@ -155,27 +152,27 @@ function StageEditor({
                             ))}
                         </div>
                     </div>
-                    {stage.logicType === 'split' && (
+                    {stage?.logicType === 'split' && (
                         <div className="space-y-1">
                             <Label className="text-xs">Default Yield (hasil pecah)</Label>
-                            <Input type="number" min={1} value={stage.defaultYield || 4} onChange={e => onChange({ ...stage, defaultYield: parseInt(e.target.value) || 4 })} className="h-10 bg-white/80 w-24" />
+                            <Input type="number" min={1} value={stage?.defaultYield || 4} onChange={e => onChange({ ...stage, defaultYield: parseInt(e.target.value) || 4 })} className="h-10 bg-white/80 w-24" />
                         </div>
                     )}
-                    {stage.logicType === 'merge' && (
+                    {stage?.logicType === 'merge' && (
                         <div className="space-y-1">
                             <Label className="text-xs">Min Komponen (merge input)</Label>
-                            <Input type="number" min={2} value={stage.mergeInputCount || 2} onChange={e => onChange({ ...stage, mergeInputCount: parseInt(e.target.value) || 2 })} className="h-10 bg-white/80 w-24" />
+                            <Input type="number" min={2} value={stage?.mergeInputCount || 2} onChange={e => onChange({ ...stage, mergeInputCount: parseInt(e.target.value) || 2 })} className="h-10 bg-white/80 w-24" />
                         </div>
                     )}
 
                     {/* Exit Channels Config */}
-                    {stage.logicType === 'exit' && (
+                    {stage?.logicType === 'exit' && (
                         <div className="space-y-2">
                             <Label className="text-xs font-bold">Sales Channels</Label>
                             <p className="text-[10px] text-gray-500">Pilih channel penjualan yang aktif untuk stage ini</p>
                             <div className="grid grid-cols-2 gap-1.5">
                                 {(Object.entries(SALES_CHANNEL_LABELS) as [SalesChannel, string][]).map(([ch, label]) => {
-                                    const active = stage.exitChannels?.includes(ch) ?? false;
+                                    const active = stage?.exitChannels?.includes(ch) ?? false;
                                     return (
                                         <button
                                             key={ch}
@@ -200,7 +197,7 @@ function StageEditor({
                     )}
 
                     {/* Allowed Material Categories */}
-                    {stage.logicType !== 'exit' && (
+                    {stage?.logicType !== 'exit' && (
                         <div className="space-y-2">
                             <Label className="text-xs font-bold">Kategori Input yang Diizinkan</Label>
                             <p className="text-[10px] text-gray-500">Item dari Master Data mana yang bisa di-input ke stage ini</p>
@@ -210,7 +207,7 @@ function StageEditor({
                                     { cat: 'wip' as MaterialCategory, label: 'WIP', activeClass: 'bg-sky-100 border-2 border-sky-500 text-sky-700' },
                                     { cat: 'finished' as MaterialCategory, label: 'Finished Goods', activeClass: 'bg-emerald-100 border-2 border-emerald-500 text-emerald-700' },
                                 ]).map(({ cat, label, activeClass }) => {
-                                    const active = stage.allowedMaterialCategories?.includes(cat) ?? false;
+                                    const active = stage?.allowedMaterialCategories?.includes(cat) ?? false;
                                     return (
                                         <button
                                             key={cat}
@@ -254,60 +251,68 @@ export default function SettingsPage() {
     const [selectedBpId, setSelectedBpId] = useState(WATCH_BLUEPRINT.id);
     const [editingBp, setEditingBp] = useState<WorkflowBlueprint | null>(null);
 
-    // Master data state (persisted in localstorage)
+    // Master data state
     const [materials, setMaterials] = useState<MasterMaterial[]>([]);
     const [products, setProducts] = useState<MasterProduct[]>([]);
     const [collections, setCollections] = useState<MasterCollection[]>(DEMO_COLLECTIONS);
     const [masterTab, setMasterTab] = useState<MasterDataTab>('materials');
 
     const [isLoaded, setIsLoaded] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-    // Initial Load from LocalStorage
     // Initial Load from Cloud
     useEffect(() => {
         const loadInitialData = async () => {
             try {
+                process.env.NEXT_PUBLIC_DEBUG && console.log("SettingsPage: Loading data...");
+                
                 // Load Master Materials
-                const mats = await getMaterials();
-                setMaterials(mats);
+                const mats = await getMaterials().catch(e => { console.error(e); return [] as MasterMaterial[]; });
+                setMaterials(mats || []);
                 
                 // Load Products with BOM
-                const prods = await getProductsWithBOM();
-                // Merge with dummy collections or fetch if you have collections table later
-                setProducts(prods);
+                const prods = await getProductsWithBOM().catch(e => { console.error(e); return [] as MasterProduct[]; });
+                setProducts(prods || []);
 
-                // Load Blueprints & Collections from localStorage for now (if no table exists yet)
-                const savedBlueprints = localStorage.getItem('gentanala_master_blueprints');
-                if (savedBlueprints) {
-                    try {
-                        const parsed = JSON.parse(savedBlueprints);
-                        if (Array.isArray(parsed)) setBlueprints(parsed);
-                    } catch (e) {
-                        console.error("Failed parsing blueprints from localStorage", e);
+                // Load Blueprints & Collections from localStorage
+                if (typeof window !== 'undefined') {
+                    const savedBlueprints = localStorage.getItem('gentanala_master_blueprints');
+                    if (savedBlueprints) {
+                        try {
+                            const parsed = JSON.parse(savedBlueprints);
+                            if (Array.isArray(parsed)) setBlueprints(parsed);
+                        } catch (e) {
+                            console.error("Failed parsing blueprints from localStorage", e);
+                        }
                     }
                 }
 
                 // Load Collections from database
-                const dbCollections = await getCollections();
-                if (dbCollections.length > 0) {
+                const dbCollections = await getCollections().catch(e => { console.error(e); return [] as MasterCollection[]; });
+                if (dbCollections && dbCollections.length > 0) {
                     setCollections(dbCollections);
                 } else {
-                    // Fallback to local storage or demo if DB is empty
-                    const savedCollections = localStorage.getItem('gentanala_master_collections');
-                    if (savedCollections) {
-                        try {
-                            const parsed = JSON.parse(savedCollections);
-                            if (Array.isArray(parsed)) setCollections(parsed);
-                            else setCollections(DEMO_COLLECTIONS);
-                        } catch (e) {
+                    // Fallback to local storage or demo
+                    if (typeof window !== 'undefined') {
+                        const savedCollections = localStorage.getItem('gentanala_master_collections');
+                        if (savedCollections) {
+                            try {
+                                const parsed = JSON.parse(savedCollections);
+                                if (Array.isArray(parsed)) setCollections(parsed);
+                                else setCollections(DEMO_COLLECTIONS);
+                            } catch (e) {
+                                setCollections(DEMO_COLLECTIONS);
+                            }
+                        } else {
                             setCollections(DEMO_COLLECTIONS);
                         }
                     } else {
                         setCollections(DEMO_COLLECTIONS);
                     }
                 }
-            } catch (error) {
-                console.error("Failed fetching master data from cloud", error);
+            } catch (err: any) {
+                console.error("Critical fail in SettingsPage initial load:", err);
+                setError(err.message || 'Unknown loading error');
                 toast.error("Gagal sync data dari database");
             } finally {
                 setIsLoaded(true);
@@ -318,13 +323,16 @@ export default function SettingsPage() {
     }, []);
 
     // Save changes to LocalStorage
-    // No longer save materials/products to local storage, only collections & blueprints
     useEffect(() => {
-        if (isLoaded) localStorage.setItem('gentanala_master_collections', JSON.stringify(collections));
+        if (isLoaded && typeof window !== 'undefined') {
+            localStorage.setItem('gentanala_master_collections', JSON.stringify(collections));
+        }
     }, [collections, isLoaded]);
 
     useEffect(() => {
-        if (isLoaded) localStorage.setItem('gentanala_master_blueprints', JSON.stringify(blueprints));
+        if (isLoaded && typeof window !== 'undefined') {
+            localStorage.setItem('gentanala_master_blueprints', JSON.stringify(blueprints));
+        }
     }, [blueprints, isLoaded]);
 
     // Editing state for master data
@@ -337,35 +345,46 @@ export default function SettingsPage() {
     const [newProdForm, setNewProdForm] = useState(false);
     const [newColForm, setNewColForm] = useState(false);
 
-    const selectedBp = blueprints.find(b => b.id === selectedBpId);
+    const selectedBp = useMemo(() => {
+        return (blueprints || []).find(b => b.id === selectedBpId);
+    }, [blueprints, selectedBpId]);
 
     const startEdit = (bp: WorkflowBlueprint) => {
+        if (!bp) return;
         setEditingBp(JSON.parse(JSON.stringify(bp)));
     };
 
     const addStage = () => {
         if (!editingBp) return;
-        const order = editingBp.stages.length + 1;
+        const currentStages = editingBp.stages || [];
+        const order = currentStages.length + 1;
         const colorIdx = (order - 1) % STAGE_COLORS.length;
-        const newStage: WorkflowStage = { id: `stg-${Date.now()}`, name: '', order, logicType: 'passthrough', emoji: '📋', color: STAGE_COLORS[colorIdx] };
-        setEditingBp({ ...editingBp, stages: [...editingBp.stages, newStage] });
+        const newStage: WorkflowStage = { 
+            id: `stg-${Date.now()}`, 
+            name: '', 
+            order, 
+            logicType: 'passthrough', 
+            emoji: '📋', 
+            color: STAGE_COLORS[colorIdx] 
+        };
+        setEditingBp({ ...editingBp, stages: [...currentStages, newStage] });
     };
 
     const updateStage = (index: number, updated: WorkflowStage) => {
-        if (!editingBp) return;
+        if (!editingBp || !editingBp.stages) return;
         const stages = [...editingBp.stages];
         stages[index] = updated;
         setEditingBp({ ...editingBp, stages });
     };
 
     const removeStage = (index: number) => {
-        if (!editingBp) return;
+        if (!editingBp || !editingBp.stages) return;
         const stages = editingBp.stages.filter((_, i) => i !== index).map((s, i) => ({ ...s, order: i + 1 }));
         setEditingBp({ ...editingBp, stages });
     };
 
     const moveStage = (index: number, direction: 'up' | 'down') => {
-        if (!editingBp) return;
+        if (!editingBp || !editingBp.stages) return;
         if (direction === 'up' && index === 0) return;
         if (direction === 'down' && index === editingBp.stages.length - 1) return;
 
@@ -382,7 +401,7 @@ export default function SettingsPage() {
 
     const saveBlueprint = () => {
         if (!editingBp) return;
-        setBlueprints(prev => prev.map(bp => bp.id === editingBp.id ? editingBp : bp));
+        setBlueprints(prev => (prev || []).map(bp => bp.id === editingBp.id ? editingBp : bp));
         setEditingBp(null);
         toast.success('Blueprint saved!');
     };
@@ -396,11 +415,21 @@ export default function SettingsPage() {
             ],
             created_at: new Date().toISOString(),
         };
-        setBlueprints(prev => [...prev, newBp]);
+        setBlueprints(prev => [...(prev || []), newBp]);
         setSelectedBpId(newBp.id);
         startEdit(newBp);
         toast.success('New blueprint created!');
     };
+
+    if (error) {
+        return (
+            <div className="p-8 text-center space-y-4">
+                <h1 className="text-2xl font-bold text-red-600">Terjadi Kesalahan Halaman</h1>
+                <p className="text-gray-600">{error}</p>
+                <Button onClick={() => window.location.reload()}>Muat Ulang</Button>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -425,31 +454,34 @@ export default function SettingsPage() {
                 <CardContent>
                     {/* Tabs */}
                     <div className="flex items-center gap-1 mb-4 bg-gray-100 p-1 rounded-xl">
-                        {([
-                            { key: 'materials' as const, label: 'Materials', icon: Package, count: materials.length },
-                            { key: 'products' as const, label: 'Products', icon: Layers, count: products.length },
-                            { key: 'collections' as const, label: 'Collections', icon: Database, count: collections.length },
-                        ]).map(tab => (
-                            <button
-                                key={tab.key}
-                                onClick={() => setMasterTab(tab.key)}
-                                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${masterTab === tab.key
-                                    ? 'bg-white shadow-sm text-gray-900'
-                                    : 'text-gray-500 hover:text-gray-700'
-                                    }`}
-                            >
-                                <tab.icon className="h-4 w-4" />
-                                {tab.label}
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-600">{tab.count}</span>
-                            </button>
-                        ))}
+                        {[
+                            { key: 'materials' as const, label: 'Materials', icon: Package, count: (materials || []).length },
+                            { key: 'products' as const, label: 'Products', icon: Layers, count: (products || []).length },
+                            { key: 'collections' as const, label: 'Collections', icon: Database, count: (collections || []).length },
+                        ].map(tab => {
+                            const IconComp = tab.icon;
+                            return (
+                                <button
+                                    key={tab.key}
+                                    onClick={() => setMasterTab(tab.key)}
+                                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${masterTab === tab.key
+                                        ? 'bg-white shadow-sm text-gray-900'
+                                        : 'text-gray-500 hover:text-gray-700'
+                                        }`}
+                                >
+                                    <IconComp className="h-4 w-4" />
+                                    {tab.label}
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-600">{tab.count}</span>
+                                </button>
+                            );
+                        })}
                     </div>
 
                     {/* ================ MATERIALS TAB ================ */}
                     {masterTab === 'materials' && (
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
-                                <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Materials ({materials.length})</p>
+                                <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Materials ({(materials || []).length})</p>
                                 <Button size="sm" onClick={() => { setNewMatForm(true); setEditingMaterial(null); }} className="gap-1.5 h-9">
                                     <Plus className="h-3.5 w-3.5" /> Tambah Material
                                 </Button>
@@ -459,17 +491,16 @@ export default function SettingsPage() {
                             {(newMatForm || editingMaterial) && (
                                 <MaterialForm
                                     material={editingMaterial}
-                                    materials={materials}
+                                    materials={materials || []}
                                     onSave={async (data) => {
                                         try {
                                             if (editingMaterial) {
                                                 await updateMaterial(editingMaterial.id, data);
-                                                // Optimistic update
-                                                setMaterials(materials.map(m => m.id === editingMaterial.id ? { ...m, ...data } : m));
+                                                setMaterials((materials || []).map(m => m.id === editingMaterial.id ? { ...m, ...data } : m));
                                                 toast.success(`Updated '${data.name}'`);
                                             } else {
                                                 const newMat = await createMaterial(data);
-                                                setMaterials([...materials, newMat]);
+                                                setMaterials([...(materials || []), newMat]);
                                                 toast.success(`Added '${data.name}'`);
                                             }
                                             setNewMatForm(false);
@@ -484,14 +515,14 @@ export default function SettingsPage() {
 
                             {/* Material List */}
                             <div className="space-y-1.5">
-                                {materials.map(mat => (
+                                {(materials || []).map(mat => (
                                     <div key={mat.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors group">
                                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${CATEGORY_OPTIONS.find(c => c.value === mat.category)?.color || 'bg-gray-100'}`}>
-                                            {mat.category.toUpperCase()}
+                                            {(mat.category || 'raw').toUpperCase()}
                                         </span>
                                         <div className="flex-1 min-w-0">
-                                            <p className="font-semibold text-sm text-gray-900 truncate">{mat.name}</p>
-                                            <p className="text-[10px] font-mono text-gray-400">{mat.sku} · {mat.unit}</p>
+                                            <p className="font-semibold text-sm text-gray-900 truncate">{mat?.name || 'Untitled'}</p>
+                                            <p className="text-[10px] font-mono text-gray-400">{mat?.sku || '-'} · {mat?.unit || 'pcs'}</p>
                                         </div>
                                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button onClick={() => { setEditingMaterial(mat); setNewMatForm(false); }} className="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-blue-600">
@@ -500,7 +531,7 @@ export default function SettingsPage() {
                                             <button onClick={async () => { 
                                                 try {
                                                     await deleteMaterialAction(mat.id);
-                                                    setMaterials(materials.filter(m => m.id !== mat.id)); 
+                                                    setMaterials((materials || []).filter(m => m.id !== mat.id)); 
                                                     toast.success(`Deleted '${mat.name}'`); 
                                                 } catch (e: any) {
                                                     toast.error('Gagal menghapus: ' + e.message);
@@ -519,7 +550,7 @@ export default function SettingsPage() {
                     {masterTab === 'products' && (
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
-                                <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Products ({products.length})</p>
+                                <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Products ({(products || []).length})</p>
                                 <Button size="sm" onClick={() => { setNewProdForm(true); setEditingProduct(null); }} className="gap-1.5 h-9">
                                     <Plus className="h-3.5 w-3.5" /> Tambah Product
                                 </Button>
@@ -529,14 +560,14 @@ export default function SettingsPage() {
                             {(newProdForm || editingProduct) && (
                                 <ProductForm
                                     product={editingProduct}
-                                    materials={materials}
-                                    collections={collections}
+                                    materials={materials || []}
+                                    collections={collections || []}
                                     onSave={async (data) => {
                                         try {
                                             const dbProductInput = {
                                                 sku: data.sku,
                                                 name: data.name,
-                                                type: 'watch' as const, // default for now
+                                                type: 'watch' as const,
                                                 collection: data.collection,
                                                 description: data.description,
                                                 sale_price: 0,
@@ -547,7 +578,6 @@ export default function SettingsPage() {
 
                                             let newId = editingProduct?.id;
                                             
-                                            // 1. Save Base Product
                                             if (editingProduct) {
                                                 await updateProduct(editingProduct.id, dbProductInput);
                                                 toast.success(`Updated '${data.name}' product details`);
@@ -557,11 +587,9 @@ export default function SettingsPage() {
                                                 toast.success(`Created '${data.name}'`);
                                             }
 
-                                            // 2. Save BOM to product_materials
                                             if (newId) {
-                                                const bomInput = data.bom.map(b => {
-                                                    // Need the actual material UUID, BOMComponent currently has sku
-                                                    const mat = materials.find(m => m.sku === b.materialSku);
+                                                const bomInput = (data.bom || []).map(b => {
+                                                    const mat = (materials || []).find(m => m.sku === b.materialSku);
                                                     return {
                                                         materialId: mat ? mat.id : '',
                                                         qty: b.qty
@@ -569,10 +597,8 @@ export default function SettingsPage() {
                                                 }).filter(b => b.materialId !== '');
                                                 
                                                 await updateProductBOM(newId, bomInput);
-                                                
-                                                // Sync local state
-                                                const prods = await getProductsWithBOM();
-                                                setProducts(prods);
+                                                const updatedProds = await getProductsWithBOM();
+                                                setProducts(updatedProds || []);
                                             }
 
                                             setNewProdForm(false);
@@ -587,14 +613,14 @@ export default function SettingsPage() {
 
                             {/* Product List */}
                             <div className="space-y-2">
-                                {products.map(prod => (
+                                {(products || []).map(prod => (
                                     <div key={prod.id} className="rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors group p-4">
                                         <div className="flex items-start gap-3">
                                             <div className="flex-1 min-w-0">
-                                                <p className="font-bold text-sm text-gray-900 truncate">{prod.name}</p>
-                                                <p className="text-[10px] font-mono text-gray-400">{prod.sku} · {prod.collection}</p>
+                                                <p className="font-bold text-sm text-gray-900 truncate">{prod?.name || 'Untitled'}</p>
+                                                <p className="text-[10px] font-mono text-gray-400">{prod?.sku || '-'} · {prod?.collection || ''}</p>
                                                 <div className="flex flex-wrap gap-1 mt-2">
-                                                    {prod.bom.map((comp, idx) => (
+                                                    {(prod.bom || []).map((comp, idx) => (
                                                         <span key={idx} className="text-[9px] bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded-md">
                                                             {comp.materialName} ×{comp.qty}
                                                         </span>
@@ -607,10 +633,8 @@ export default function SettingsPage() {
                                                 </button>
                                                 <button onClick={async () => { 
                                                     try {
-                                                        // NOTE: Delete product actually disables it, but doesn't remove BOM.
-                                                        // This uses the same soft-delete logic as inventory actions.
                                                         await deleteProduct(prod.id);
-                                                        setProducts(products.filter(p => p.id !== prod.id));
+                                                        setProducts((products || []).filter(p => p.id !== prod.id));
                                                         toast.success(`Deleted '${prod.name}'`);
                                                     } catch (err: any) {
                                                         toast.error('Gagal hapus: ' + err.message);
@@ -630,7 +654,7 @@ export default function SettingsPage() {
                     {masterTab === 'collections' && (
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
-                                <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Collections ({collections.length})</p>
+                                <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Collections ({(collections || []).length})</p>
                                 <Button size="sm" onClick={() => { setNewColForm(true); setEditingCollection(null); }} className="gap-1.5 h-9">
                                     <Plus className="h-3.5 w-3.5" /> Tambah Collection
                                 </Button>
@@ -643,12 +667,11 @@ export default function SettingsPage() {
                                     onSave={async (data) => {
                                         try {
                                             if (editingCollection) {
-                                                // For now, update stays local + localstorage until we add update action
-                                                setCollections(prev => prev.map(c => c.id === editingCollection.id ? { ...c, ...data } : c));
+                                                setCollections(prev => (prev || []).map(c => c.id === editingCollection.id ? { ...c, ...data } : c));
                                                 toast.success(`Updated '${data.name}' (Local)`);
                                             } else {
                                                 const newCol = await createCollectionAction(data as Omit<MasterCollection, 'id'>);
-                                                setCollections(prev => [...prev, newCol]);
+                                                setCollections(prev => [...(prev || []), newCol]);
                                                 toast.success(`Added '${data.name}' to database`);
                                             }
                                             setNewColForm(false);
@@ -663,19 +686,19 @@ export default function SettingsPage() {
 
                             {/* Collection List */}
                             <div className="space-y-1.5">
-                                {collections.map(col => (
+                                {(collections || []).map(col => (
                                     <div key={col.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors group">
-                                        <div className={`w-3 h-3 rounded-full bg-${col.color || 'gray'}-500`} />
-                                        <p className="flex-1 font-semibold text-sm text-gray-900">{col.name}</p>
+                                        <div className={`w-3 h-3 rounded-full bg-${col?.color || 'gray'}-500`} />
+                                        <p className="flex-1 font-semibold text-sm text-gray-900">{col?.name || 'Untitled'}</p>
                                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button onClick={() => { setEditingCollection(col); setNewColForm(false); }} className="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-blue-600">
                                                 <Pencil className="h-3.5 w-3.5" />
                                             </button>
                                             <button onClick={async () => { 
-                                                if (confirm(`Hapus collection '${col.name}'?`)) {
+                                                if (typeof window !== 'undefined' && confirm(`Hapus collection '${col.name}'?`)) {
                                                     try {
                                                         await deleteCollectionAction(col.id);
-                                                        setCollections(prev => prev.filter(c => c.id !== col.id));
+                                                        setCollections(prev => (prev || []).filter(c => c.id !== col.id));
                                                         toast.success(`Deleted '${col.name}'`);
                                                     } catch (err: any) {
                                                         toast.error('Gagal hapus: ' + err.message);
@@ -694,7 +717,7 @@ export default function SettingsPage() {
             </Card>
 
             {/* ========================================== */}
-            {/* WORKFLOW BUILDER (existing) */}
+            {/* WORKFLOW BUILDER */}
             {/* ========================================== */}
             <Card>
                 <CardHeader>
@@ -712,7 +735,7 @@ export default function SettingsPage() {
                 <CardContent>
                     {/* Blueprint List */}
                     <div className="space-y-3 mb-6">
-                        {blueprints.map(bp => (
+                        {(blueprints || []).map(bp => (
                             <div
                                 key={bp.id}
                                 className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedBpId === bp.id
@@ -722,12 +745,12 @@ export default function SettingsPage() {
                                 onClick={() => { setSelectedBpId(bp.id); setEditingBp(null); }}
                             >
                                 <div>
-                                    <p className="font-bold text-sm">{bp.name}</p>
+                                    <p className="font-bold text-sm">{bp?.name || 'Untitled'}</p>
                                     <p className="text-xs text-gray-500">
-                                        {(bp.stages || []).length} stages · {bp.productType || 'Belum dikonfigurasi'}
+                                        {(bp?.stages || []).length} stages · {bp?.productType || 'Belum dikonfigurasi'}
                                     </p>
                                     <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                                        {bp.stages?.map?.(s => (
+                                        {(bp?.stages || []).map(s => (
                                             <span key={s.id} className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${s.color?.bg || 'bg-gray-50'} ${s.color?.text || 'text-gray-700'} ${s.color?.border || 'border-gray-200'} border`}>
                                                 {s.emoji} {s.name}
                                             </span>
@@ -757,11 +780,11 @@ export default function SettingsPage() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label>Nama Blueprint</Label>
-                                    <Input value={editingBp.name} onChange={e => setEditingBp({ ...editingBp, name: e.target.value })} className="h-12" />
+                                    <Input value={editingBp.name || ''} onChange={e => setEditingBp({ ...editingBp, name: e.target.value })} className="h-12" />
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Tipe Produk</Label>
-                                    <Input value={editingBp.productType} onChange={e => setEditingBp({ ...editingBp, productType: e.target.value })} placeholder="e.g. watch, wallet" className="h-12" />
+                                    <Input value={editingBp.productType || ''} onChange={e => setEditingBp({ ...editingBp, productType: e.target.value })} placeholder="e.g. watch, wallet" className="h-12" />
                                 </div>
                             </div>
 
@@ -772,13 +795,13 @@ export default function SettingsPage() {
 
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between">
-                                    <Label className="text-sm font-bold">Stages ({editingBp.stages.length})</Label>
+                                    <Label className="text-sm font-bold">Stages {(editingBp.stages || []).length}</Label>
                                     <Button variant="outline" size="sm" onClick={addStage} className="gap-1.5 h-9">
                                         <Plus className="h-3.5 w-3.5" /> Tambah Stage
                                     </Button>
                                 </div>
 
-                                {editingBp.stages.map((stage, idx) => (
+                                {(editingBp.stages || []).map((stage, idx) => (
                                     <StageEditor
                                         key={stage.id}
                                         stage={stage}
@@ -788,7 +811,7 @@ export default function SettingsPage() {
                                         onMoveUp={() => moveStage(idx, 'up')}
                                         onMoveDown={() => moveStage(idx, 'down')}
                                         isFirst={idx === 0}
-                                        isLast={idx === editingBp.stages.length - 1}
+                                        isLast={idx === (editingBp.stages || []).length - 1}
                                     />
                                 ))}
                             </div>
@@ -822,7 +845,7 @@ function MaterialForm({
     const [description, setDescription] = useState(material?.description || '');
     const [transformYields, setTransformYields] = useState<string[]>(material?.transformYields || []);
 
-    const possibleYields = materials.filter(m => m.category !== 'raw' && m.sku !== sku);
+    const possibleYields = (materials || []).filter(m => m.category !== 'raw' && m.sku !== sku);
 
     return (
         <div className="rounded-xl border-2 border-blue-200 bg-blue-50/50 p-4 space-y-3">
@@ -867,13 +890,13 @@ function MaterialForm({
                 <p className="text-[10px] text-gray-500">Pilih WIP/Finished Goods yang bisa dihasilkan dari bahan mentah/material ini.</p>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2 py-1 max-h-40 overflow-y-auto pr-2">
                     {possibleYields.map(m => {
-                        const isSelected = transformYields.includes(m.sku);
+                        const isSelected = (transformYields || []).includes(m.sku);
                         return (
                             <button
                                 key={m.sku}
                                 onClick={() => {
                                     if (isSelected) setTransformYields(transformYields.filter(s => s !== m.sku));
-                                    else setTransformYields([...transformYields, m.sku]);
+                                    else setTransformYields([...(transformYields || []), m.sku]);
                                 }}
                                 className={`text-left p-2 rounded-lg border text-xs transition-all ${isSelected
                                     ? 'bg-blue-100 border-blue-400 text-blue-800 font-medium'
@@ -923,20 +946,19 @@ function ProductForm({
     const [bom, setBom] = useState<BOMComponent[]>(product?.bom || []);
 
     const addBomRow = () => {
-        setBom([...bom, { materialSku: '', materialName: '', qty: 1 }]);
+        setBom([...(bom || []), { materialSku: '', materialName: '', qty: 1 }]);
     };
 
     const updateBomRow = (idx: number, field: keyof BOMComponent, value: string | number) => {
-        const updated = [...bom];
+        const updated = [...(bom || [])];
         if (field === 'materialSku') {
-            // Check for duplicates
-            const isDuplicate = bom.some((r, i) => i !== idx && r.materialSku === value);
+            const isDuplicate = (bom || []).some((r, i) => i !== idx && r.materialSku === value);
             if (isDuplicate && value !== '') {
                 toast.error('Material ini sudah ada di daftar BOM');
-                return; // Prevent duplicate selection
+                return;
             }
 
-            const mat = materials.find(m => m.sku === value);
+            const mat = (materials || []).find(m => m.sku === value);
             updated[idx] = { ...updated[idx], materialSku: value as string, materialName: mat?.name || '' };
         } else if (field === 'qty') {
             updated[idx] = { ...updated[idx], qty: value as number };
@@ -945,7 +967,7 @@ function ProductForm({
     };
 
     const removeBomRow = (idx: number) => {
-        setBom(bom.filter((_, i) => i !== idx));
+        setBom((bom || []).filter((_, i) => i !== idx));
     };
 
     return (
@@ -967,7 +989,7 @@ function ProductForm({
                     <Label className="text-xs">Collection *</Label>
                     <select value={collection} onChange={e => setCollection(e.target.value)} className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">
                         <option value="">Pilih...</option>
-                        {collections.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                        {(collections || []).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                     </select>
                 </div>
             </div>
@@ -984,10 +1006,10 @@ function ProductForm({
                         <Plus className="h-3 w-3" /> Komponen
                     </Button>
                 </div>
-                {bom.length === 0 && (
+                {(bom || []).length === 0 && (
                     <p className="text-[10px] text-gray-400 text-center py-4">Belum ada komponen. Klik &quot;+ Komponen&quot; untuk menambahkan.</p>
                 )}
-                {bom.map((row, idx) => (
+                {(bom || []).map((row, idx) => (
                     <div key={idx} className="flex items-center gap-2 bg-white rounded-lg p-2 border border-gray-100">
                         <select
                             value={row.materialSku}
@@ -995,7 +1017,7 @@ function ProductForm({
                             className="flex-1 h-9 rounded-lg border border-gray-200 px-2 text-sm bg-white"
                         >
                             <option value="">Pilih material...</option>
-                            {materials.map(m => <option key={m.id} value={m.sku}>{m.name} ({m.sku})</option>)}
+                            {(materials || []).map(m => <option key={m.id} value={m.sku}>{m.name} ({m.sku})</option>)}
                         </select>
                         <Input
                             type="number"
