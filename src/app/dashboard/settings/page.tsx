@@ -533,13 +533,10 @@ export default function SettingsPage() {
                                             setNewMatForm(false);
                                             setEditingMaterial(null);
                                         } catch (err: any) {
-                                            const msg = err.message || '';
-                                            if (msg.includes('row-level security') || msg.includes('violates row-level security')) {
-                                                toast.error('AKSES DITOLAK (RLS): Database nolak perintah lu karena akun lu bukan Super Admin. Copy-paste SQL yang gue kasih tadi ya bro!');
-                                            } else {
-                                                toast.error('Gagal menyimpan material: ' + msg);
-                                            }
-                                            throw err; // Re-throw to keep the isSaving state true in the form until error is shown
+                                            const msg = err?.message || String(err) || 'Unknown error';
+                                            console.error('[onSave material] Error:', err);
+                                            toast.error(`Gagal simpan: ${msg}`);
+                                            throw err; // Re-throw so form stays showing
                                         }
                                     }}
                                     onCancel={() => { setNewMatForm(false); setEditingMaterial(null); }}

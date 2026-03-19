@@ -78,18 +78,28 @@ export async function updateMaterial(id: string, data: Partial<MasterMaterial>):
         updated_at: new Date().toISOString()
     };
     
-    if (data.sku) updateData.code = data.sku; // DB uses 'code'
-    if (data.name) updateData.name = data.name;
-    if (data.category) updateData.type = data.category;
-    if (data.unit) updateData.unit = data.unit;
+    if (data.sku !== undefined) updateData.code = data.sku; // DB uses 'code'
+    if (data.name !== undefined) updateData.name = data.name;
+    // Note: 'type' column may not exist in DB - skip it to avoid errors
+    // if (data.category !== undefined) updateData.type = data.category;
+    if (data.unit !== undefined) updateData.unit = data.unit;
     if (data.description !== undefined) updateData.description = data.description || null;
     
-    const { error } = await supabase
+    console.log('[updateMaterial] Updating ID:', id, 'with data:', updateData);
+    
+    const { data: result, error } = await supabase
         .from('materials')
         .update(updateData)
-        .eq('id', id);
+        .eq('id', id)
+        .select()
+        .single();
         
-    if (error) throw error;
+    if (error) {
+        console.error('[updateMaterial] Error:', error);
+        throw new Error(error.message || 'Database update failed');
+    }
+    
+    console.log('[updateMaterial] Success:', result);
     
     revalidatePath('/dashboard/settings');
     revalidatePath('/dashboard/inventory');
