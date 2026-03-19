@@ -118,10 +118,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [supabase]);
 
     const signOut = async () => {
-        await supabase.auth.signOut();
-        localStorage.setItem('demo_logged_out', 'true');
-        setProfile(null);
-        window.location.href = '/auth/login';
+        try {
+            await supabase.auth.signOut();
+        } catch (err) {
+            console.error("SignOut error:", err);
+        }
+        if (typeof window !== 'undefined') {
+            localStorage.clear(); // Full reset for peace of mind
+            window.location.href = '/auth/login';
+        }
     };
 
     const isSuperAdmin = profile?.role === 'super_admin';
