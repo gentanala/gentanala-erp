@@ -31,7 +31,7 @@ export async function getProducts(options?: {
 
     const { data, error } = await query;
 
-    if (error) throw error;
+    if (error) throw new Error(error.message);
 
     const products = (data || []) as unknown as Product[];
 
@@ -52,7 +52,7 @@ export async function getProduct(id: string): Promise<Product> {
         .eq('id', id)
         .single();
 
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     return data as unknown as Product;
 }
 
@@ -77,24 +77,9 @@ export async function createProduct(product: CreateProductInput): Promise<Produc
         error: authError,
     } = await supabase.auth.getUser();
 
-    console.log('[createProduct] Auth result:', { 
-        userId: user?.id, 
-        email: user?.email, 
-        authError: authError?.message 
-    });
-
     if (authError || !user) {
-        console.error('[createProduct] Auth check failed:', authError?.message || 'No user session');
         throw new Error('Session expired. Silakan logout dan login kembali.');
     }
-
-    // Debug: check profile
-    const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-    console.log('[createProduct] Profile check:', { profile, profileError: profileError?.message });
 
     const insertData = {
         sku: product.sku,
@@ -116,9 +101,9 @@ export async function createProduct(product: CreateProductInput): Promise<Produc
 
     if (error) {
         if (error.code === '42501') {
-            throw new Error('Akses ditolak oleh database (RLS). Buka Supabase SQL Editor dan jalankan: INSERT INTO public.profiles (id, email, full_name, role) SELECT id, email, \'Super Admin\', \'super_admin\' FROM auth.users WHERE email = \'admin@gentanala.com\' ON CONFLICT (id) DO UPDATE SET role = \'super_admin\';');
+            throw new Error('Akses ditolak (RLS).');
         }
-        throw error;
+        throw new Error(error.message);
     }
 
     revalidatePath('/dashboard/inventory');
@@ -143,7 +128,7 @@ export async function updateProduct(id: string, updates: Partial<Product>): Prom
         .select()
         .single();
 
-    if (error) throw error;
+    if (error) throw new Error(error.message);
 
     revalidatePath('/dashboard/inventory');
     revalidatePath('/dashboard/settings');
@@ -156,23 +141,18 @@ export async function updateProduct(id: string, updates: Partial<Product>): Prom
 export async function deleteProduct(id: string): Promise<void> {
     const supabase = await createClient();
 
-    // Soft delete by setting is_active to false
     const { error } = await supabase
         .from('products')
         .update({ is_active: false, updated_at: new Date().toISOString() })
         .eq('id', id);
 
-    if (error) throw error;
+    if (error) throw new Error(error.message);
 
     revalidatePath('/dashboard/inventory');
     revalidatePath('/dashboard/settings');
     revalidatePath('/dashboard/production');
     revalidatePath('/dashboard');
 }
-
-// ============================================
-// INVENTORY MOVEMENT ACTIONS
-// ============================================
 
 export async function getInventoryMovements(
     productId: string,
@@ -187,7 +167,7 @@ export async function getInventoryMovements(
         .order('created_at', { ascending: false })
         .limit(limit);
 
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     return (data || []) as unknown as InventoryMovement[];
 }
 
@@ -202,35 +182,6 @@ interface CreateMovementInput {
 }
 
 export async function createStockMovement(input: CreateMovementInput): Promise<InventoryMovement> {
-    // Check if we're in demo mode (placeholder Supabase config)
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-    const isDemoMode = supabaseUrl.includes('placeholder') || supabaseUrl === '';
-
-    if (isDemoMode) {
-        // Return a mock movement for demo mode
-        const mockMovement: InventoryMovement = {
-            id: `demo-${Date.now()}`,
-            product_id: input.product_id,
-            material_id: null,
-            type: input.type,
-            quantity: input.quantity,
-            stock_before: 10,
-            stock_after: 10 + input.quantity,
-            unit_cost: 150000,
-            total_cost: Math.abs(input.quantity) * 150000,
-            reason: input.reason || null,
-            notes: input.notes || null,
-            reference_type: input.reference_type || null,
-            reference_id: input.reference_id || null,
-            created_by: 'demo-user',
-            created_at: new Date().toISOString(),
-        };
-
-        // Note: In demo mode, stock doesn't actually persist
-        revalidatePath('/dashboard/inventory');
-        return mockMovement;
-    }
-
     const supabase = await createClient();
 
     // Get current stock
@@ -240,17 +191,13 @@ export async function createStockMovement(input: CreateMovementInput): Promise<I
         .eq('id', input.product_id)
         .single();
 
-    if (productError) {
-        throw new Error(`Failed to get product: ${productError.message}`);
-    }
+    if (productError) throw new Error(productError.message);
 
     const product = productData as { current_stock: number; cost_price: number };
     const stock_before = product.current_stock;
     const stock_after = stock_before + input.quantity;
 
-    const {
-        data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
 
     const insertData = {
         product_id: input.product_id,
@@ -268,35 +215,20 @@ export async function createStockMovement(input: CreateMovementInput): Promise<I
         created_by: user?.id || null,
     };
 
-    // Create movement record - trigger will update product stock
     const { data, error } = await supabase
         .from('inventory_movements')
         .insert(insertData)
         .select()
         .single();
 
-    if (error) {
-        throw new Error(`Failed to create stock movement: ${error.message}`);
-    }
+    if (error) throw new Error(error.message);
 
     revalidatePath('/dashboard/inventory');
     revalidatePath(`/dashboard/inventory/${input.product_id}`);
     return data as unknown as InventoryMovement;
 }
 
-// ============================================
-// LOW STOCK ALERTS
-// ============================================
-
-interface LowStockProduct {
-    id: string;
-    sku: string;
-    name: string;
-    current_stock: number;
-    min_stock_threshold: number;
-}
-
-export async function getLowStockProducts(): Promise<LowStockProduct[]> {
+export async function getLowStockProducts(): Promise<any[]> {
     const supabase = await createClient();
 
     const { data, error } = await supabase
@@ -304,25 +236,11 @@ export async function getLowStockProducts(): Promise<LowStockProduct[]> {
         .select('id, sku, name, current_stock, min_stock_threshold')
         .eq('is_active', true);
 
-    if (error) throw error;
-
-    const products = (data || []) as unknown as LowStockProduct[];
-    // Filter in JS since we can't compare columns directly
-    return products.filter((p) => p.current_stock < p.min_stock_threshold);
+    if (error) throw new Error(error.message);
+    return (data || []).filter((p: any) => p.current_stock < p.min_stock_threshold);
 }
 
-// ============================================
-// DASHBOARD STATS
-// ============================================
-
-interface InventoryStats {
-    totalProducts: number;
-    totalUnits: number;
-    totalAssetValue: number;
-    lowStockCount: number;
-}
-
-export async function getInventoryStats(): Promise<InventoryStats> {
+export async function getInventoryStats(): Promise<any> {
     const supabase = await createClient();
 
     const { data, error } = await supabase
@@ -330,17 +248,9 @@ export async function getInventoryStats(): Promise<InventoryStats> {
         .select('id, current_stock, cost_price, sale_price, type, min_stock_threshold')
         .eq('is_active', true);
 
-    if (error) throw error;
+    if (error) throw new Error(error.message);
 
-    const products = (data || []) as unknown as {
-        id: string;
-        current_stock: number;
-        cost_price: number;
-        sale_price: number;
-        type: string;
-        min_stock_threshold: number;
-    }[];
-
+    const products = (data || []);
     const totalProducts = products.length;
     const totalUnits = products.reduce((sum, p) => sum + p.current_stock, 0);
     const totalAssetValue = products.reduce((sum, p) => sum + p.current_stock * p.cost_price, 0);

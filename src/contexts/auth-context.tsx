@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { Profile } from '@/lib/database.types';
 
@@ -24,6 +24,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
     const supabase = createClient();
+    const initRef = useRef(false);
 
     // Helper to synthesize/fallback profile roles
     const getEnrichedProfile = (baseProfile: Profile | null, user: any): Profile | null => {
@@ -32,7 +33,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const email = user.email?.toLowerCase() || '';
         let role = baseProfile?.role || null;
         
-        // Hardcoded fallbacks for critical accounts
         if (!role) {
             if (email === 'admin@gentanala.com') role = 'super_admin';
             else if (email === 'workshop@gentanala.com') role = 'workshop_admin';
@@ -55,12 +55,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         let mounted = true;
 
         async function initAuth() {
+            if (initRef.current) return;
+            initRef.current = true;
+
             try {
-                console.log('[AuthContext] Initializing...');
+                console.log('[Auth] Initializing...');
                 const isDemo = process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') || !process.env.NEXT_PUBLIC_SUPABASE_URL;
                 
                 if (isDemo) {
-                    console.log('[AuthContext] Demo mode detected');
                     const loggedOut = localStorage.getItem('demo_logged_out') === 'true';
                     if (!loggedOut && mounted) {
                         setProfile(getEnrichedProfile(null, { id: 'demo-user', email: 'admin@gentanala.com' }));
@@ -69,56 +71,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     return;
                 }
 
+                // Get session with a bit of retry/wait for hydration
                 const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-                if (sessionError) console.error('[AuthContext] Session error:', sessionError);
                 
                 if (session?.user && mounted) {
-                    console.log('[AuthContext] Session found for:', session.user.id);
-                    const { data: profileRecord, error: profileError } = await supabase
+                    const { data: profileRecord } = await supabase
                         .from('profiles')
                         .select('*')
                         .eq('id', session.user.id)
                         .maybeSingle();
 
-                    if (profileError) console.error('[AuthContext] Profile error:', profileError);
-
                     if (mounted) {
-                        const enriched = getEnrichedProfile(profileRecord || null, session.user);
-                        console.log('[AuthContext] Profile loaded:', enriched?.role);
-                        setProfile(enriched);
+                        setProfile(getEnrichedProfile(profileRecord || null, session.user));
                     }
-                } else if (mounted) {
-                    console.log('[AuthContext] No session found');
-                    setProfile(null);
                 }
             } catch (err) {
-                console.error("[AuthContext] Fatal init error:", err);
+                console.error("[Auth] Init Error:", err);
             } finally {
-                if (mounted) {
-                    console.log('[AuthContext] Loading finished');
-                    setLoading(false);
-                }
+                if (mounted) setLoading(false);
             }
         }
 
-        // Safety timeout to ensure we don't hang forever
+        // 10s Safety Timeout for slow networks/Vercel edge
         const safetyTimer = setTimeout(() => {
             if (mounted && loading) {
-                console.warn("[AuthContext] Init timed out (5s), forcing loading finished");
+                console.warn("[Auth] TIMEOUT - Forcing finished state");
                 setLoading(false);
             }
-        }, 5000);
+        }, 10000);
 
         initAuth();
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            async (event: string, session: any) => {
-                console.log('[AuthContext] Auth state change:', event);
+            async (event, session) => {
+                console.log('[Auth] Event:', event);
                 if (event === 'SIGNED_OUT') {
-                    if (mounted) {
-                        setProfile(null);
-                        setLoading(false);
-                    }
+                    if (mounted) setProfile(null);
                 } else if (session?.user) {
                     const { data: profileRecord } = await supabase
                         .from('profiles')
@@ -128,11 +116,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                     if (mounted) {
                         setProfile(getEnrichedProfile(profileRecord || null, session.user));
-                        setLoading(false);
                     }
-                } else if (mounted) {
-                    setLoading(false);
                 }
+                if (mounted) setLoading(false);
             }
         );
 
@@ -159,13 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const isWorkshopAdmin = profile?.role === 'workshop_admin';
     
     return (
-        <AuthContext.Provider value={{ 
-            profile, 
-            loading, 
-            isSuperAdmin, 
-            isWorkshopAdmin, 
-            signOut 
-        }}>
+        <AuthContext.Provider value={{ profile, loading, isSuperAdmin, isWorkshopAdmin, signOut }}>
             {children}
         </AuthContext.Provider>
     );
@@ -173,8 +153,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
     const context = useContext(AuthContext);
-    if (!context) {
-        throw new Error('useAuth must be used within an AuthProvider');
-    }
+    if (!context) throw new Error('useAuth must be used within an AuthProvider');
     return context;
 }

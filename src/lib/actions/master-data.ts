@@ -18,29 +18,26 @@ export async function getMaterials(): Promise<MasterMaterial[]> {
     const { data, error } = await supabase
         .from('materials')
         .select('*')
-        .eq('is_active', true) // Only active materials
+        .eq('is_active', true)
         .order('name');
         
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     
-    // Map Database rows to MasterMaterial
     return (data || []).map(d => ({
         id: d.id,
-        sku: d.code, // DB uses 'code'
+        sku: d.code,
         name: d.name,
-        category: (d.type || d.category || 'raw') as MaterialCategory, // Handle both type and legacy category
+        category: (d.type || d.category || 'raw') as MaterialCategory,
         unit: d.unit,
         description: d.description || '',
-        transformYields: [] // we can extend this later
+        transformYields: []
     }));
 }
 
 export async function createMaterial(data: Omit<MasterMaterial, 'id'>): Promise<MasterMaterial> {
     try {
         const supabase = await createClient();
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        
-        console.log('[createMaterial] Auth:', { user: user?.id, error: authError?.message });
+        const { data: { user } } = await supabase.auth.getUser();
         
         const insertData: any = {
             code: data.sku,
@@ -56,20 +53,13 @@ export async function createMaterial(data: Omit<MasterMaterial, 'id'>): Promise<
         
         if (data.category) insertData.type = data.category;
         
-        console.log('[createMaterial] Inserting:', insertData);
-        
         const { data: dbData, error } = await supabase
             .from('materials')
             .insert(insertData)
             .select()
             .single();
             
-        if (error) {
-            console.error('[createMaterial] Database Error:', error);
-            throw new Error(`DB Error: ${error.message}`);
-        }
-        
-        console.log('[createMaterial] Success:', dbData.id);
+        if (error) throw new Error(error.message);
         
         revalidatePath('/dashboard/settings');
         revalidatePath('/dashboard/inventory');
@@ -84,19 +74,14 @@ export async function createMaterial(data: Omit<MasterMaterial, 'id'>): Promise<
             description: dbData.description || '',
         };
     } catch (e: any) {
-        console.error('[createMaterial] Catch-all Error:', e);
-        throw new Error(e.message || 'Gagal membuat material (Server Error 500)');
+        throw new Error(e.message || 'Gagal membuat material');
     }
 }
 
 export async function updateMaterial(id: string, data: Partial<MasterMaterial>): Promise<void> {
     try {
         const supabase = await createClient();
-        console.log('[updateMaterial] Processing ID:', id);
-        
-        const updateData: any = {
-            updated_at: new Date().toISOString()
-        };
+        const updateData: any = { updated_at: new Date().toISOString() };
         
         if (data.sku !== undefined) updateData.code = data.sku;
         if (data.name !== undefined) updateData.name = data.name;
@@ -104,61 +89,35 @@ export async function updateMaterial(id: string, data: Partial<MasterMaterial>):
         if (data.unit !== undefined) updateData.unit = data.unit;
         if (data.description !== undefined) updateData.description = data.description || null;
         
-        const { error } = await supabase
-            .from('materials')
-            .update(updateData)
-            .eq('id', id);
+        const { error } = await supabase.from('materials').update(updateData).eq('id', id);
             
         if (error) {
             if (error.message.includes('type') && error.message.includes('not exist')) {
-                console.warn('[updateMaterial] Retrying without "type" column...');
                 const { type, ...safeUpdateData } = updateData;
-                const { error: retryError } = await supabase
-                    .from('materials')
-                    .update(safeUpdateData)
-                    .eq('id', id);
+                const { error: retryError } = await supabase.from('materials').update(safeUpdateData).eq('id', id);
                 if (retryError) throw new Error(retryError.message);
             } else {
-                throw error;
+                throw new Error(error.message);
             }
         }
         
         revalidatePath('/dashboard/settings');
         revalidatePath('/dashboard/inventory');
     } catch (e: any) {
-        console.error('[updateMaterial] Catch-all Error:', e);
-        throw new Error(e.message || 'Gagal update material (Server Error 500)');
+        throw new Error(e.message || 'Gagal update material');
     }
 }
 
 export async function deleteMaterialAction(id: string): Promise<void> {
     try {
         const supabase = await createClient();
-        console.log('[deleteMaterialAction] ID:', id);
-        
-        const { error } = await supabase
-            .from('materials')
-            .update({ is_active: false })
-            .eq('id', id);
-            
-        if (error) throw error;
+        const { error } = await supabase.from('materials').update({ is_active: false }).eq('id', id);
+        if (error) throw new Error(error.message);
         
         revalidatePath('/dashboard/settings');
         revalidatePath('/dashboard/inventory');
     } catch (e: any) {
-        console.error('[deleteMaterialAction] Error:', e);
         throw new Error(e.message || 'Gagal hapus material');
-    }
-}
-
-export async function getProfilesDiagnostic(): Promise<any[]> {
-    try {
-        const supabase = await createClient();
-        const { data, error } = await supabase.from('profiles').select('*');
-        if (error) throw error;
-        return data || [];
-    } catch (e: any) {
-        return [{ error: e.message }];
     }
 }
 
@@ -168,31 +127,17 @@ export async function getProfilesDiagnostic(): Promise<any[]> {
 
 export async function getProductsWithBOM(): Promise<MasterProduct[]> {
     const supabase = await createClient();
+    const { data: products, error: pErr } = await supabase.from('products').select('*').eq('is_active', true).order('name');
+    if (pErr) throw new Error(pErr.message);
     
-    // Get products
-    const { data: products, error: pErr } = await supabase
-        .from('products')
-        .select('*')
-        .eq('is_active', true)
-        .order('name');
-        
-    if (pErr) throw pErr;
-    
-    // Get all bill of materials - wrap in try-catch to be resilient
     let boms: any[] = [];
     try {
-        const { data, error } = await supabase
-            .from('product_materials')
-            .select('*, material:materials(id, name, type, unit)');
+        const { data, error } = await supabase.from('product_materials').select('*, material:materials(id, name, type, unit)');
         if (!error && data) boms = data;
-    } catch (e) {
-        console.error("BOM fetch failed, returning products without BOM:", e);
-    }
+    } catch (e) {}
     
-    // Merge them
     return (products || []).map(p => {
         const productBoms = boms.filter(b => b.product_id === p.id);
-        
         return {
             id: p.id,
             sku: p.sku,
@@ -210,33 +155,21 @@ export async function getProductsWithBOM(): Promise<MasterProduct[]> {
 
 export async function updateProductBOM(productId: string, bom: {materialId: string, qty: number}[]): Promise<void> {
     const supabase = await createClient();
+    const { error: delErr } = await supabase.from('product_materials').delete().eq('product_id', productId);
+    if (delErr) throw new Error(delErr.message);
     
-    // 1. Delete existing BOM for this product
-    const { error: delErr } = await supabase
-        .from('product_materials')
-        .delete()
-        .eq('product_id', productId);
-        
-    if (delErr) throw delErr;
-    
-    // 2. Insert new BOM if any
     if (bom.length > 0) {
         const inserts = bom.map(b => ({
             product_id: productId,
             material_id: b.materialId,
-            quantity_required: b.qty // DB uses 'quantity_required'
+            quantity_required: b.qty
         }));
-        
-        const { error: insErr } = await supabase
-            .from('product_materials')
-            .insert(inserts);
-            
-        if (insErr) throw insErr;
+        const { error: insErr } = await supabase.from('product_materials').insert(inserts);
+        if (insErr) throw new Error(insErr.message);
     }
     
     revalidatePath('/dashboard/settings');
     revalidatePath('/dashboard/inventory');
-    revalidatePath('/dashboard/production');
 }
 
 // ============================================
@@ -245,15 +178,8 @@ export async function updateProductBOM(productId: string, bom: {materialId: stri
 
 export async function getCollections(): Promise<MasterCollection[]> {
     const supabase = await createClient();
-    const { data, error } = await supabase
-        .from('master_collections')
-        .select('*')
-        .order('name');
-        
-    if (error) {
-        console.error("Error fetching collections:", error);
-        return [];
-    }
+    const { data, error } = await supabase.from('master_collections').select('*').order('name');
+    if (error) return [];
     
     return (data || []).map(d => ({
         id: d.id,
@@ -264,45 +190,23 @@ export async function getCollections(): Promise<MasterCollection[]> {
 
 export async function createCollectionAction(data: Omit<MasterCollection, 'id'>): Promise<MasterCollection> {
     const supabase = await createClient();
-    
-    // Get user for created_by
     const { data: { user } } = await supabase.auth.getUser();
+    const insertData = { name: data.name, color: data.color || 'gray', created_by: user?.id || null };
     
-    const insertData = {
-        name: data.name,
-        color: data.color || 'gray',
-        created_by: user?.id || null
-    };
-    
-    const { data: dbData, error } = await supabase
-        .from('master_collections')
-        .insert(insertData)
-        .select()
-        .single();
-        
-    if (error) {
-        console.error("Error creating collection:", error);
-        throw error;
-    }
+    const { data: dbData, error } = await supabase.from('master_collections').insert(insertData).select().single();
+    if (error) throw new Error(error.message);
     
     revalidatePath('/dashboard/settings');
     revalidatePath('/dashboard/inventory');
     
-    return {
-        id: dbData.id,
-        name: dbData.name,
-        color: dbData.color
-    };
+    return { id: dbData.id, name: dbData.name, color: dbData.color };
 }
 
 export async function deleteCollectionAction(id: string): Promise<void> {
     const supabase = await createClient();
     const { error } = await supabase.from('master_collections').delete().eq('id', id);
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     
     revalidatePath('/dashboard/settings');
     revalidatePath('/dashboard/inventory');
-    revalidatePath('/dashboard/production');
-    revalidatePath('/dashboard');
 }
-
