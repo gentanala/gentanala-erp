@@ -463,9 +463,17 @@ export default function SettingsPage() {
                                 <Database className="h-5 w-5" />
                                 Master Data
                             </CardTitle>
-                            <p className="text-sm text-muted-foreground mt-1">Database material, produk, dan collection sebagai sumber data utama</p>
+                            <p className="text-sm text-muted-foreground mt-1">Database material, produk, dan koleksi sebagai sumber data utama</p>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => window.location.reload()} 
+                                className="h-10 rounded-xl gap-2 font-bold border-blue-200 text-blue-700 hover:bg-blue-50"
+                            >
+                                <RefreshCw className="h-4 w-4" /> Sync Database
+                            </Button>
                             <div className="flex flex-col items-end px-3 py-1.5 rounded-xl border border-blue-100 bg-white shadow-sm">
                                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Role Aktif</span>
                                 <span className={`text-xs font-bold ${isSuperAdmin ? 'text-blue-600' : 'text-amber-600'}`}>
@@ -480,7 +488,7 @@ export default function SettingsPage() {
                 </CardHeader>
                 <CardContent>
                     {/* Tabs */}
-                    <div className="flex items-center gap-1 mb-4 bg-gray-100 p-1 rounded-xl">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 mb-4 bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200">
                         {[
                             { key: 'materials' as const, label: 'Materials', icon: Package, count: (materials || []).length },
                             { key: 'products' as const, label: 'Products', icon: Layers, count: (products || []).length },
@@ -559,15 +567,20 @@ export default function SettingsPage() {
                                                 <Pencil className="h-3.5 w-3.5" />
                                             </button>
                                             <button onClick={async () => { 
-                                                try {
-                                                    await deleteMaterialAction(mat.id);
-                                                    setMaterials((materials || []).filter(m => m.id !== mat.id)); 
-                                                    toast.success(`Deleted '${mat.name}'`); 
-                                                } catch (e: any) {
-                                                    toast.error('Gagal menghapus: ' + e.message);
+                                                if (typeof window !== 'undefined' && confirm(`Hapus material '${mat.name}'?\n\nSKU: ${mat.sku}\nKategori: ${mat.category.toUpperCase()}`)) {
+                                                    try {
+                                                        toast.loading(`Menghapus ${mat.name}...`);
+                                                        await deleteMaterialAction(mat.id);
+                                                        setMaterials((materials || []).filter(m => m.id !== mat.id)); 
+                                                        toast.dismiss();
+                                                        toast.success(`Berhasil menghapus '${mat.name}'`); 
+                                                    } catch (e: any) {
+                                                        toast.dismiss();
+                                                        toast.error('Gagal menghapus: ' + e.message);
+                                                    }
                                                 }
-                                            }} className="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-red-600">
-                                                <Trash2 className="h-3.5 w-3.5" />
+                                            }} className="p-2 rounded-xl hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors border border-transparent hover:border-red-100">
+                                                <Trash2 className="h-4 w-4" />
                                             </button>
                                         </div>
                                     </div>
@@ -662,15 +675,20 @@ export default function SettingsPage() {
                                                     <Pencil className="h-3.5 w-3.5" />
                                                 </button>
                                                 <button onClick={async () => { 
-                                                    try {
-                                                        await deleteProduct(prod.id);
-                                                        setProducts((products || []).filter(p => p.id !== prod.id));
-                                                        toast.success(`Deleted '${prod.name}'`);
-                                                    } catch (err: any) {
-                                                        toast.error('Gagal hapus: ' + err.message);
+                                                    if (typeof window !== 'undefined' && confirm(`Hapus produk '${prod.name}'?\n\nSKU: ${prod.sku}`)) {
+                                                        try {
+                                                            toast.loading(`Menghapus ${prod.name}...`);
+                                                            await deleteProduct(prod.id);
+                                                            setProducts((products || []).filter(p => p.id !== prod.id));
+                                                            toast.dismiss();
+                                                            toast.success(`Berhasil menghapus '${prod.name}'`);
+                                                        } catch (err: any) {
+                                                            toast.dismiss();
+                                                            toast.error('Gagal hapus: ' + err.message);
+                                                        }
                                                     }
-                                                }} className="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-red-600">
-                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                }} className="p-2 rounded-xl hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors border border-transparent hover:border-red-100">
+                                                    <Trash2 className="h-4 w-4" />
                                                 </button>
                                             </div>
                                         </div>

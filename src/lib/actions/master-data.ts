@@ -18,6 +18,7 @@ export async function getMaterials(): Promise<MasterMaterial[]> {
     const { data, error } = await supabase
         .from('materials')
         .select('*')
+        .eq('is_active', true) // Only active materials
         .order('name');
         
     if (error) throw error;
@@ -27,7 +28,7 @@ export async function getMaterials(): Promise<MasterMaterial[]> {
         id: d.id,
         sku: d.code, // DB uses 'code'
         name: d.name,
-        category: d.type as MaterialCategory, // 'raw', 'wip', 'finished'
+        category: (d.type || d.category || 'raw') as MaterialCategory, // Handle both type and legacy category
         unit: d.unit,
         description: d.description || '',
         transformYields: [] // we can extend this later
@@ -42,11 +43,12 @@ export async function createMaterial(data: Omit<MasterMaterial, 'id'>): Promise<
     const insertData = {
         code: data.sku, // DB uses 'code'
         name: data.name,
-        type: data.category,
+        type: data.category, // Now using type column
         unit: data.unit,
         description: data.description || null,
         created_by: user?.id || null,
-        min_stock_threshold: 5 // Default
+        min_stock_threshold: 5, // Default
+        is_active: true
     };
     
     const { data: dbData, error } = await supabase
@@ -63,7 +65,7 @@ export async function createMaterial(data: Omit<MasterMaterial, 'id'>): Promise<
     
     return {
         id: dbData.id,
-        sku: dbData.code, // DB uses 'code'
+        sku: dbData.code,
         name: dbData.name,
         category: dbData.type as MaterialCategory,
         unit: dbData.unit,
@@ -78,10 +80,9 @@ export async function updateMaterial(id: string, data: Partial<MasterMaterial>):
         updated_at: new Date().toISOString()
     };
     
-    if (data.sku !== undefined) updateData.code = data.sku; // DB uses 'code'
+    if (data.sku !== undefined) updateData.code = data.sku;
     if (data.name !== undefined) updateData.name = data.name;
-    // Note: 'type' column may not exist in DB - skip it to avoid errors
-    // if (data.category !== undefined) updateData.type = data.category;
+    if (data.category !== undefined) updateData.type = data.category;
     if (data.unit !== undefined) updateData.unit = data.unit;
     if (data.description !== undefined) updateData.description = data.description || null;
     
@@ -99,8 +100,6 @@ export async function updateMaterial(id: string, data: Partial<MasterMaterial>):
         throw new Error(error.message || 'Database update failed');
     }
     
-    console.log('[updateMaterial] Success:', result);
-    
     revalidatePath('/dashboard/settings');
     revalidatePath('/dashboard/inventory');
     revalidatePath('/dashboard/production');
@@ -108,13 +107,16 @@ export async function updateMaterial(id: string, data: Partial<MasterMaterial>):
 
 export async function deleteMaterialAction(id: string): Promise<void> {
     const supabase = await createClient();
-    // Assuming simple delete for now, might need soft delete if linked to inventory
-    const { error } = await supabase.from('materials').delete().eq('id', id);
+    // Soft delete by setting is_active to false
+    const { error } = await supabase
+        .from('materials')
+        .update({ is_active: false })
+        .eq('id', id);
+        
     if (error) throw error;
     
     revalidatePath('/dashboard/settings');
     revalidatePath('/dashboard/inventory');
-    revalidatePath('/dashboard/production');
 }
 
 // ============================================
