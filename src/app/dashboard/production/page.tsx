@@ -241,7 +241,7 @@ export default function ProductionPage() {
         return blueprints.find(bp => bp.id === selectedBpId) || blueprints[0];
     }, [blueprints, selectedBpId]);
 
-    const [items, setItems] = useState<KanbanItem[]>(DEMO_ITEMS);
+    const [items, setItems] = useState<KanbanItem[]>([]);
     const [logs, setLogs] = useState<ActivityLog[]>([]);
     const [isLoaded, setIsLoaded] = useState(false);
     const [loading, setLoading] = useState(false);
