@@ -29,33 +29,33 @@ const KanbanCardComponent = ({ item, stage, products, onDragStart, onEdit, onDel
         <div
             draggable
             onDragStart={(e) => onDragStart(e, item.id)}
-            className={`group relative cursor-grab active:cursor-grabbing rounded-2xl border-2 bg-white p-4 shadow-sm transition-all duration-200 hover:shadow-lg hover:-translate-y-1 active:shadow-md ${stage.color.border}`}
-            style={{ minHeight: '72px' }}
+            className={`group relative cursor-grab active:cursor-grabbing rounded-xl border-2 bg-white p-2.5 shadow-sm transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 active:shadow-md ${stage.color.border}`}
+            style={{ minHeight: '60px' }}
         >
             <div className="flex items-start gap-3">
                 <GripVertical className="h-5 w-5 mt-0.5 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                 <div className="flex-1 min-w-0">
                     {/* Emoji + Name */}
-                    <div className="flex items-start gap-2">
-                        {(item.emoji || stage.emoji) && <span className="text-base leading-none pt-0.5">{item.emoji || stage.emoji}</span>}
-                        <p className="font-bold text-sm text-gray-900 break-words whitespace-normal leading-tight">{item.name}</p>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                        {(item.emoji || stage.emoji) && <span className="text-sm shrink-0">{item.emoji || stage.emoji}</span>}
+                        <p className="font-bold text-xs text-gray-900 truncate">{item.name}</p>
                     </div>
 
                     {/* SKU */}
                     {item.sku && (
-                        <p className="text-[10px] font-mono text-gray-400 mt-0.5">{item.sku}</p>
+                        <p className="text-[9px] font-mono text-gray-400 truncate">{item.sku}</p>
                     )}
 
                     {/* Collection + Qty row */}
-                    <div className="flex items-center justify-between mt-2">
+                    <div className="flex items-center justify-between mt-1.5">
                         {item.collection ? (
-                            <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full ${stage.color.bg} ${stage.color.text}`}>
+                            <span className={`inline-block text-[9px] font-semibold px-1.5 py-px rounded-full ${stage.color.bg} ${stage.color.text} truncate max-w-[80px]`}>
                                 {item.collection}
                             </span>
                         ) : <span />}
-                        <div className="flex items-center gap-1.5">
-                            <Package className="h-3.5 w-3.5 text-gray-400" />
-                            <span className="text-xs font-bold text-gray-700">{item.quantity} pcs</span>
+                        <div className="flex items-center gap-1 shrink-0">
+                            <Package className="h-3 w-3 text-gray-400" />
+                            <span className="text-[11px] font-bold text-gray-700">{item.quantity} pcs</span>
                         </div>
                     </div>
 
@@ -88,8 +88,8 @@ const KanbanCardComponent = ({ item, stage, products, onDragStart, onEdit, onDel
                         <p className="text-[9px] text-purple-500 mt-1">🔧 Merged from {item.mergedFrom.length} components</p>
                     ) : null}
 
-                    {item.parentId && !item.metadata?.bomProgress && (
-                        <p className="text-[9px] text-amber-500 mt-1">✂️ Split from parent</p>
+                    {item.parentId && !item.metadata?.bomProgress && !item.mergedFrom.length && (
+                        <p className="text-[8px] text-amber-500 mt-1 opacity-70">✂️ Split from parent</p>
                     )}
                 </div>
 

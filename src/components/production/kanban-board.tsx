@@ -120,7 +120,7 @@ export function KanbanBoard({ blueprint, items, products, onItemDrop, onAddItem,
                         </div>
 
                         {/* Cards List */}
-                        <div className="px-3 pb-4 space-y-3 max-h-[400px] overflow-y-auto">
+                        <div className="px-3 pb-4 space-y-2.5 max-h-[600px] overflow-y-auto">
                             {stageItems.map((item) => (
                                 <div
                                     key={item.id}

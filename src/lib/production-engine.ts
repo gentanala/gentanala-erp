@@ -374,51 +374,32 @@ export function handleSplit(
     user: string,
     stages: WorkflowStage[],
 ): { items: KanbanItem[]; logs: ActivityLog[] } {
-    const parent = items.find(i => i.id === itemId)!;
+    const parentIdx = items.findIndex(i => i.id === itemId);
+    const parent = items[parentIdx];
     const fromStage = stages.find(s => s.id === parent.stageId);
     const toStage = stages.find(s => s.id === toStageId);
 
-    const childIds: string[] = [];
-    const children: KanbanItem[] = [];
-
-    // Instead of creating N separate cards, create 1 card with quantity = yieldCount
-    const childId = nextId('item');
-    childIds.push(childId);
-    children.push({
-        id: childId,
-        name: childName,
-        sku: childSku,
-        stageId: toStageId,
-        quantity: yieldCount,
-        price: 0,
-        collection: parent.collection,
-        thumbnailUrl: null,
-        parentId: parent.id,
-        childIds: [],
-        mergedFrom: [],
-        status: 'active',
-        salesChannel: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-    });
-
     const remainingQty = Math.max(0, parent.quantity - consumedCount);
+    let updatedItems = [...items];
 
-    // Parent item logic: if remainingQty is 0, mark as consumed. Otherwise, just reduce quantity.
-    const updated = items.map(i => {
-        if (i.id === itemId) {
-            return {
-                ...i,
-                quantity: remainingQty,
-                status: remainingQty === 0 ? 'consumed' as const : 'active' as const,
-                childIds: remainingQty === 0 ? childIds : [...i.childIds, ...childIds],
-                updated_at: new Date().toISOString()
-            };
-        }
-        return i;
-    });
+    // Update parent
+    updatedItems[parentIdx] = {
+        ...parent,
+        quantity: remainingQty,
+        status: remainingQty === 0 ? 'consumed' as const : 'active' as const,
+        updated_at: new Date().toISOString()
+    };
 
-    const log: ActivityLog = {
+    // Check if same SKU already exists in target stage
+    const existingIdx = updatedItems.findIndex(i => 
+        i.sku === childSku && 
+        i.stageId === toStageId && 
+        i.status === 'active' &&
+        !i.metadata?.targetBomSku
+    );
+
+    const logs: ActivityLog[] = [];
+    logs.push({
         id: nextId('log'),
         timestamp: new Date().toISOString(),
         user,
@@ -427,10 +408,50 @@ export function handleSplit(
         from_stage: fromStage?.name || null,
         to_stage: toStage?.name || toStageId,
         logicType: 'split',
-        metadata: { consumed: consumedCount, yield: yieldCount, childCount: yieldCount },
-    };
+        metadata: { consumed: consumedCount, yield: yieldCount, childCount: yieldCount, childName },
+    });
 
-    return { items: [...updated, ...children], logs: [log] };
+    if (existingIdx >= 0) {
+        // Merge into existing card
+        const existing = updatedItems[existingIdx];
+        updatedItems[existingIdx] = {
+            ...existing,
+            quantity: existing.quantity + yieldCount,
+            updated_at: new Date().toISOString(),
+            parentId: parent.id, // Reference last split
+            mergedFrom: [...(existing.mergedFrom || []), parent.id]
+        };
+        
+        // Also update parent's childIds even if we merged
+        updatedItems[parentIdx].childIds = [...(updatedItems[parentIdx].childIds || []), existing.id];
+        
+        return { items: updatedItems, logs };
+    } else {
+        // Create new child card
+        const childId = nextId('item');
+        const child: KanbanItem = {
+            id: childId,
+            name: childName,
+            sku: childSku,
+            stageId: toStageId,
+            quantity: yieldCount,
+            price: 0,
+            collection: parent.collection,
+            thumbnailUrl: null,
+            parentId: parent.id,
+            childIds: [],
+            mergedFrom: [],
+            status: 'active',
+            salesChannel: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        };
+        
+        updatedItems[parentIdx].childIds = [...(updatedItems[parentIdx].childIds || []), childId];
+        updatedItems.push(child);
+        
+        return { items: updatedItems, logs };
+    }
 }
 
 /** 
@@ -698,15 +719,21 @@ export function handleAddItem(
     const toStage = stages.find(s => s.id === stageId);
 
     // Check if same SKU already exists in this stage — merge quantity
-    const existingIdx = items.findIndex(i => i.sku === sku && i.stageId === stageId && i.status === 'active');
-    let updatedItems: KanbanItem[];
+    const existingIdx = items.findIndex(i => 
+        i.sku === sku && 
+        i.stageId === stageId && 
+        i.status === 'active' &&
+        !i.metadata?.targetBomSku
+    );
+    let updatedItems = [...items];
 
     if (existingIdx >= 0 && sku) {
-        updatedItems = items.map((item, idx) =>
-            idx === existingIdx
-                ? { ...item, quantity: item.quantity + quantity, updated_at: new Date().toISOString() }
-                : item
-        );
+        const existing = updatedItems[existingIdx];
+        updatedItems[existingIdx] = {
+            ...existing,
+            quantity: existing.quantity + quantity,
+            updated_at: new Date().toISOString()
+        };
     } else {
         const newItem: KanbanItem = {
             id: nextId('item'),
@@ -726,7 +753,7 @@ export function handleAddItem(
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
         };
-        updatedItems = [...items, newItem];
+        updatedItems.push(newItem);
     }
 
     const log: ActivityLog = {

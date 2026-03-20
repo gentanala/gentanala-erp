@@ -287,6 +287,7 @@ export interface ActivityLog {
     salesChannel?: SalesChannel;
     salePrice?: number;
     rejectedQty?: number;
+    [key: string]: any;
   };
 }
 
