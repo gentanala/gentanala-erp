@@ -930,9 +930,9 @@ function MaterialForm({
                     <Label className="text-xs text-blue-700 font-bold">Icon/Emoji</Label>
                     <div className="flex flex-col gap-2">
                         <Input value={emoji} onChange={e => setEmoji(e.target.value)} className="h-10 w-16 text-center text-lg bg-white" placeholder="⚙️" />
-                        <div className="flex flex-wrap gap-1 w-[120px]">
-                            {['🪵', '🔩', '⚙️', '💎', '🐄', '🪡', '📏', '📦', '🏠', '🔧', '🔨'].map(e => (
-                                <button key={e} onClick={() => setEmoji(e)} className="hover:scale-125 transition-transform text-sm">{e}</button>
+                        <div className="flex flex-wrap gap-1 w-[140px]">
+                            {['🪵', '🔩', '⚙️', '💎', '🧊', '🌀', '💿', '💍', '🔋', '🔌', '🎗️', '🧵', '🪡', '📏', '📦', '🔧', '🔨', '🎨'].map(e => (
+                                <button key={e} onClick={() => setEmoji(e)} className="hover:scale-150 transition-transform text-sm p-0.5">{e}</button>
                             ))}
                         </div>
                     </div>
@@ -1100,9 +1100,9 @@ function ProductForm({
                     <Label className="text-xs text-emerald-700 font-bold">Icon/Emoji</Label>
                     <div className="flex flex-col gap-2">
                         <Input value={emoji} onChange={e => setEmoji(e.target.value)} className="h-10 w-16 text-center text-lg bg-white" placeholder="⌚" />
-                        <div className="flex flex-wrap gap-1 w-[120px]">
-                            {['⌚', '🕰️', '📁', '🎒', '💼', '👔', '👑', '🧤'].map(e => (
-                                <button key={e} onClick={() => setEmoji(e)} className="hover:scale-125 transition-transform text-sm">{e}</button>
+                        <div className="flex flex-wrap gap-1 w-[140px]">
+                            {['⌚', '🕰️', '🕰', '⏱️', '⏲️', '⏳', '💼', '🎒', '👔', '👑', '🧤', '✨', '🎁'].map(e => (
+                                <button key={e} onClick={() => setEmoji(e)} className="hover:scale-150 transition-transform text-sm p-0.5">{e}</button>
                             ))}
                         </div>
                     </div>
