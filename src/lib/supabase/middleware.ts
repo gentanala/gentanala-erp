@@ -34,27 +34,26 @@ export async function updateSession(request: NextRequest) {
         }
     );
 
-    // Skip auth check in demo mode to avoid long timeout delays
-    // const {
-    //     data: { user },
-    // } = await supabase.auth.getUser();
+    const {
+        data: { user },
+    } = await supabase.auth.getUser();
 
     // Protected routes - redirect to login if not authenticated
-    // const isProtectedRoute = request.nextUrl.pathname.startsWith('/dashboard');
-    // const isAuthRoute = request.nextUrl.pathname.startsWith('/auth');
+    const isProtectedRoute = request.nextUrl.pathname.startsWith('/dashboard');
+    const isAuthRoute = request.nextUrl.pathname.startsWith('/auth');
 
-    // if (isProtectedRoute && !user) {
-    //     const url = request.nextUrl.clone();
-    //     url.pathname = '/auth/login';
-    //     return NextResponse.redirect(url);
-    // }
+    if (isProtectedRoute && !user) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/auth/login';
+        return NextResponse.redirect(url);
+    }
 
     // Redirect authenticated users away from auth pages
-    // if (isAuthRoute && user) {
-    //     const url = request.nextUrl.clone();
-    //     url.pathname = '/dashboard';
-    //     return NextResponse.redirect(url);
-    // }
+    if (isAuthRoute && user) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/dashboard';
+        return NextResponse.redirect(url);
+    }
 
     return supabaseResponse;
 }

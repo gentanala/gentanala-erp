@@ -246,7 +246,7 @@ export function AppSidebar() {
                                 Settings
                             </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={signOut} className="text-destructive">
+                        <DropdownMenuItem onSelect={(e) => { e.preventDefault(); signOut(); }} className="text-destructive cursor-pointer">
                             <LogOut className="mr-2 h-4 w-4" />
                             Sign out
                         </DropdownMenuItem>
