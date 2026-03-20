@@ -26,15 +26,18 @@ export async function getMaterials(): Promise<MasterMaterial[]> {
         
     if (error) throw new Error(error.message);
     
-    return (data || []).map(d => ({
-        id: d.id,
-        sku: d.code,
-        name: d.name,
-        category: 'raw' as MaterialCategory, // DB has no category column, default to 'raw'
-        unit: d.unit,
-        description: d.description || '',
-        transformYields: []
-    }));
+    return (data || []).map(d => {
+        const extraInfo = d.supplier_info || {};
+        return {
+            id: d.id,
+            sku: d.code,
+            name: d.name,
+            category: (extraInfo.category as MaterialCategory) || 'raw',
+            unit: d.unit,
+            description: d.description || '',
+            transformYields: Array.isArray(extraInfo.transformYields) ? extraInfo.transformYields : []
+        };
+    });
 }
 
 export async function createMaterial(data: Omit<MasterMaterial, 'id'>): Promise<MasterMaterial> {
@@ -51,7 +54,11 @@ export async function createMaterial(data: Omit<MasterMaterial, 'id'>): Promise<
             min_stock_threshold: 5,
             is_active: true,
             cost_per_unit: 0,
-            current_stock: 0
+            current_stock: 0,
+            supplier_info: {
+                category: data.category,
+                transformYields: data.transformYields || []
+            }
         };
         
         console.log('[createMaterial] Inserting:', JSON.stringify(insertData));
@@ -77,9 +84,10 @@ export async function createMaterial(data: Omit<MasterMaterial, 'id'>): Promise<
             id: dbData.id,
             sku: dbData.code,
             name: dbData.name,
-            category: 'raw' as MaterialCategory,
+            category: data.category || 'raw',
             unit: dbData.unit,
             description: dbData.description || '',
+            transformYields: data.transformYields || []
         };
     } catch (e: any) {
         console.error('[createMaterial] Error:', e.message);
@@ -91,17 +99,32 @@ export async function updateMaterial(id: string, data: Partial<MasterMaterial>):
     try {
         const supabase = await createClient();
         
-        // Only use columns that actually exist in the DB!
-        // DB has: code, name, description, unit — NO 'type' or 'category'
+        // Fetch existing material first to merge supplier_info
+        const { data: existingData, error: fetchErr } = await supabase
+            .from('materials')
+            .select('supplier_info')
+            .eq('id', id)
+            .single();
+            
+        if (fetchErr) throw new Error(fetchErr.message);
+        
+        const existingInfo = existingData.supplier_info || {};
+        
+        const newInfo = {
+            ...existingInfo,
+        };
+        if (data.category !== undefined) newInfo.category = data.category;
+        if (data.transformYields !== undefined) newInfo.transformYields = data.transformYields;
+
         const updateData: Record<string, any> = {
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            supplier_info: newInfo
         };
         
         if (data.sku !== undefined) updateData.code = data.sku;
         if (data.name !== undefined) updateData.name = data.name;
         if (data.unit !== undefined) updateData.unit = data.unit;
         if (data.description !== undefined) updateData.description = data.description || null;
-        // NOTE: Intentionally NOT setting 'type' or 'category' — column does not exist!
         
         console.log('[updateMaterial] ID:', id, 'Data:', JSON.stringify(updateData));
         
