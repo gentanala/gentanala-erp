@@ -17,6 +17,7 @@ export interface MasterMaterial {
     unit: string;           // pcs, sheet, block, unit
     description?: string;
     emoji?: string;
+    imageUrl?: string;
     transformYields?: string[]; // Array of SKUs this material can be transformed into
 }
 
@@ -34,6 +35,7 @@ export interface MasterProduct {
     bom: BOMComponent[];    // Bill of Materials — what's needed for assembly
     description?: string;
     emoji?: string;
+    imageUrl?: string;
 }
 
 export interface MasterCollection {

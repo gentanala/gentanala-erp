@@ -437,7 +437,7 @@ export function handleSplit(
             quantity: yieldCount,
             price: 0,
             collection: parent.collection,
-            thumbnailUrl: null,
+            thumbnailUrl: parent.thumbnailUrl,
             parentId: parent.id,
             childIds: [],
             mergedFrom: [],
@@ -713,6 +713,7 @@ export function handleAddItem(
     quantity: number,
     collection: string | null,
     emoji: string | undefined,
+    thumbnailUrl: string | null | undefined,
     user: string,
     stages: WorkflowStage[],
 ): { items: KanbanItem[]; log: ActivityLog } {
@@ -744,7 +745,7 @@ export function handleAddItem(
             quantity,
             price: 0,
             collection,
-            thumbnailUrl: null,
+            thumbnailUrl: thumbnailUrl || null,
             parentId: null,
             childIds: [],
             mergedFrom: [],
@@ -774,7 +775,7 @@ export function handleAddItem(
 export function handleEditItem(
     items: KanbanItem[],
     itemId: string,
-    updates: { name?: string; sku?: string | null; quantity?: number; collection?: string | null; emoji?: string },
+    updates: { name?: string; sku?: string | null; quantity?: number; collection?: string | null; emoji?: string; thumbnailUrl?: string | null },
     user: string,
     stages: WorkflowStage[],
 ): { items: KanbanItem[]; log: ActivityLog } {

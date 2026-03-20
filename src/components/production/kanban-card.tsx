@@ -35,9 +35,15 @@ const KanbanCardComponent = ({ item, stage, products, onDragStart, onEdit, onDel
                 <GripVertical className="h-3.5 w-3.5 text-gray-200 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                 
                 <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
-                    {/* Emoji + Name */}
+                    {/* Image / Emoji + Name */}
                     <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                        {(item.emoji || stage.emoji) && <span className="text-xs shrink-0">{item.emoji || stage.emoji}</span>}
+                        {item.thumbnailUrl ? (
+                            <div className="h-4 w-4 rounded overflow-hidden flex-shrink-0">
+                                <img src={item.thumbnailUrl} alt={item.name} className="w-full h-full object-cover" />
+                            </div>
+                        ) : (
+                            (item.emoji || stage.emoji) && <span className="text-xs shrink-0">{item.emoji || stage.emoji}</span>
+                        )}
                         <p className="font-bold text-[11px] text-gray-800 leading-tight">
                             {item.name}
                         </p>

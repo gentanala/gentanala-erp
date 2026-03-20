@@ -356,12 +356,14 @@ export default function ProductionPage() {
     const [newSku, setNewSku] = useState('');
     const [newQty, setNewQty] = useState('1');
     const [newCollection, setNewCollection] = useState('');
+    const [newImageUrl, setNewImageUrl] = useState('');
 
     // Edit dialog
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<KanbanItem | null>(null);
     const [editName, setEditName] = useState('');
     const [editEmoji, setEditEmoji] = useState('');
+    const [editImageUrl, setEditImageUrl] = useState('');
     const [editSku, setEditSku] = useState('');
     const [editQty, setEditQty] = useState('1');
     const [editCollection, setEditCollection] = useState('');
@@ -672,14 +674,16 @@ export default function ProductionPage() {
         setNewSku('');
         setNewQty('1');
         setNewCollection('');
+        setNewImageUrl('');
         setAddDialogOpen(true);
     }, []);
 
-    const handleSearchSelect = (item: { name: string; sku: string; collection?: string; emoji?: string }) => {
+    const handleSearchSelect = (item: { name: string; sku: string; collection?: string; emoji?: string; imageUrl?: string }) => {
         setNewName(item.name);
         setNewSku(item.sku);
         if (item.collection) setNewCollection(item.collection);
         if (item.emoji) setNewEmoji(item.emoji);
+        if (item.imageUrl) setNewImageUrl(item.imageUrl);
     };
 
     const handleConfirmAdd = async () => {
@@ -690,6 +694,7 @@ export default function ProductionPage() {
                 parseInt(newQty) || 1,
                 newCollection.trim() || null,
                 newEmoji || undefined,
+                newImageUrl || null,
                 userName, blueprint.stages
             );
 
@@ -717,6 +722,7 @@ export default function ProductionPage() {
         setEditingItem(item);
         setEditName(item.name);
         setEditEmoji(item.emoji || '');
+        setEditImageUrl(item.thumbnailUrl || '');
         setEditSku(item.sku || '');
         setEditQty(item.quantity.toString());
         setEditCollection(item.collection || '');
@@ -734,6 +740,7 @@ export default function ProductionPage() {
                     sku: editSku || null,
                     quantity: parseInt(editQty) || 1,
                     collection: editCollection.trim() || null,
+                    thumbnailUrl: editImageUrl || null,
                 },
                 userName, blueprint.stages
             );

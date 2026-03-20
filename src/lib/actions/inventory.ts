@@ -67,6 +67,7 @@ interface CreateProductInput {
     cost_price: number;
     current_stock: number;
     min_stock_threshold: number;
+    image_urls?: string[];
 }
 
 export async function createProduct(product: CreateProductInput): Promise<Product> {
@@ -92,7 +93,7 @@ export async function createProduct(product: CreateProductInput): Promise<Produc
         cost_price: product.cost_price,
         current_stock: product.current_stock,
         min_stock_threshold: product.min_stock_threshold,
-        image_urls: [],
+        image_urls: product.image_urls || [],
         is_active: true,
         created_by: user.id,
     };

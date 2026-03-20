@@ -35,6 +35,7 @@ export async function getMaterials(): Promise<MasterMaterial[]> {
             category: (extraInfo.category as MaterialCategory) || 'raw',
             unit: d.unit,
             emoji: extraInfo.emoji || '',
+            imageUrl: extraInfo.imageUrl || '',
             description: d.description || '',
             transformYields: Array.isArray(extraInfo.transformYields) ? extraInfo.transformYields : []
         };
@@ -59,6 +60,7 @@ export async function createMaterial(data: Omit<MasterMaterial, 'id'>): Promise<
             supplier_info: {
                 category: data.category,
                 emoji: data.emoji || '',
+                imageUrl: data.imageUrl || '',
                 transformYields: data.transformYields || []
             }
         };
@@ -117,6 +119,7 @@ export async function updateMaterial(id: string, data: Partial<MasterMaterial>):
         };
         if (data.category !== undefined) newInfo.category = data.category;
         if (data.emoji !== undefined) newInfo.emoji = data.emoji;
+        if (data.imageUrl !== undefined) newInfo.imageUrl = data.imageUrl;
         if (data.transformYields !== undefined) newInfo.transformYields = data.transformYields;
 
         const updateData: Record<string, any> = {
@@ -192,6 +195,7 @@ export async function getProductsWithBOM(): Promise<MasterProduct[]> {
             sku: p.sku,
             name: p.name,
             emoji: p.variant || '',
+            imageUrl: (p.image_urls && p.image_urls[0]) || '',
             collection: p.collection || '',
             description: p.description || '',
             bom: productBoms.map(b => ({

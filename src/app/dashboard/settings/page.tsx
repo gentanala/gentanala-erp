@@ -567,8 +567,12 @@ export default function SettingsPage() {
                                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${CATEGORY_OPTIONS.find(c => c.value === mat.category)?.color || 'bg-gray-100'}`}>
                                             {(mat.category || 'raw').toUpperCase()}
                                         </span>
-                                        <div className="w-10 h-10 flex items-center justify-center bg-white rounded-lg shadow-sm border border-gray-200 text-xl">
-                                            {mat.emoji || '📦'}
+                                        <div className="w-10 h-10 flex items-center justify-center bg-white rounded-lg shadow-sm border border-gray-200 text-xl overflow-hidden">
+                                            {mat.imageUrl ? (
+                                                <img src={mat.imageUrl} alt={mat.name} className="w-full h-full object-cover" />
+                                            ) : (
+                                                mat.emoji || '📦'
+                                            )}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <p className="font-semibold text-sm text-gray-900 truncate">{mat?.name || 'Untitled'}</p>
@@ -617,7 +621,7 @@ export default function SettingsPage() {
                                     product={editingProduct}
                                     materials={materials || []}
                                     collections={collections || []}
-                                    onSave={async (data: { name: string; sku: string; collection: string; description: string; emoji: string; bom: BOMComponent[] }) => {
+                                    onSave={async (data: { name: string; sku: string; collection: string; description: string; emoji: string; imageUrl: string; bom: BOMComponent[] }) => {
                                         try {
                                             const dbProductInput = {
                                                 sku: data.sku,
@@ -626,6 +630,7 @@ export default function SettingsPage() {
                                                 collection: data.collection,
                                                 description: data.description,
                                                 variant: data.emoji || '',
+                                                image_urls: data.imageUrl ? [data.imageUrl] : [],
                                                 sale_price: 0,
                                                 cost_price: 0,
                                                 current_stock: 0,
@@ -674,7 +679,13 @@ export default function SettingsPage() {
                                         <div className="flex items-start gap-3">
                                         <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-xl">{prod.emoji || '⌚'}</span>
+                                                    <div className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm border border-gray-200 text-xl overflow-hidden shrink-0">
+                                                        {prod.imageUrl ? (
+                                                            <img src={prod.imageUrl} alt={prod.name} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            prod.emoji || '⌚'
+                                                        )}
+                                                    </div>
                                                     <p className="font-bold text-sm text-gray-900 truncate">{prod?.name || 'Untitled'}</p>
                                                 </div>
                                                 <p className="text-[10px] font-mono text-gray-400 ml-8">{prod?.sku || '-'} · {prod?.collection || ''}</p>
@@ -912,6 +923,7 @@ function MaterialForm({
     const [category, setCategory] = useState<MaterialCategory>(material?.category || 'raw');
     const [unit, setUnit] = useState(material?.unit || 'pcs');
     const [emoji, setEmoji] = useState(material?.emoji || '');
+    const [imageUrl, setImageUrl] = useState(material?.imageUrl || '');
     const [description, setDescription] = useState(material?.description || '');
     const [transformYields, setTransformYields] = useState<string[]>(material?.transformYields || []);
     const [isSaving, setIsSaving] = useState(false);
@@ -935,6 +947,19 @@ function MaterialForm({
                                 <button key={e} onClick={() => setEmoji(e)} className="hover:scale-150 transition-transform text-sm p-0.5">{e}</button>
                             ))}
                         </div>
+                    </div>
+                </div>
+                <div className="space-y-1">
+                    <Label className="text-xs text-blue-700 font-bold">Atau URL Gambar</Label>
+                    <div className="flex flex-col gap-2">
+                        <div className="w-16 h-10 bg-white border border-blue-200 rounded-lg flex items-center justify-center overflow-hidden">
+                            {imageUrl ? (
+                                <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                            ) : (
+                                <span className="text-gray-300 text-[10px]">No Img</span>
+                            )}
+                        </div>
+                        <Input value={imageUrl} onChange={e => setImageUrl(e.target.value)} className="h-10 w-32 text-xs bg-white" placeholder="https://..." />
                     </div>
                 </div>
                 <div className="flex-1 space-y-3">
@@ -1021,6 +1046,7 @@ function MaterialForm({
                                 category, 
                                 unit: unit.trim() || 'pcs', 
                                 emoji: emoji.trim(),
+                                imageUrl: imageUrl.trim(),
                                 description: description.trim(), 
                                 transformYields: transformYields.length > 0 ? transformYields : undefined 
                             });
@@ -1054,13 +1080,14 @@ function ProductForm({
     product: MasterProduct | null;
     materials: MasterMaterial[];
     collections: MasterCollection[];
-    onSave: (data: { name: string; sku: string; collection: string; description: string; emoji: string; bom: BOMComponent[] }) => Promise<void>;
+    onSave: (data: { name: string; sku: string; collection: string; description: string; emoji: string; imageUrl: string; bom: BOMComponent[] }) => Promise<void>;
     onCancel: () => void;
 }) {
     const [name, setName] = useState(product?.name || '');
     const [sku, setSku] = useState(product?.sku || '');
     const [collection, setCollection] = useState(product?.collection || '');
     const [emoji, setEmoji] = useState(product?.emoji || '');
+    const [imageUrl, setImageUrl] = useState(product?.imageUrl || '');
     const [description, setDescription] = useState(product?.description || '');
     const [bom, setBom] = useState<BOMComponent[]>(product?.bom || []);
 
@@ -1169,7 +1196,7 @@ function ProductForm({
 
             <div className="flex justify-end gap-2 pt-1">
                 <Button variant="outline" size="sm" onClick={onCancel} className="h-9">Batal</Button>
-                <Button size="sm" onClick={() => { if (name && sku && collection) onSave({ name, sku, collection, description, emoji, bom }); }} className="h-9 gap-1.5" disabled={!name || !sku || !collection}>
+                <Button size="sm" onClick={() => { if (name && sku && collection) onSave({ name, sku, collection, description, emoji, imageUrl, bom }); }} className="h-9 gap-1.5" disabled={!name || !sku || !collection}>
                     <Save className="h-3.5 w-3.5" /> Simpan
                 </Button>
             </div>
