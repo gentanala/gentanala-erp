@@ -311,7 +311,26 @@ export async function getKanbanItems(): Promise<KanbanItem[]> {
         .order('created_at', { ascending: true });
 
     if (error) throw error;
-    return (data || []) as unknown as KanbanItem[];
+    
+    return (data || []).map((d: any) => ({
+        id: d.id,
+        name: d.name,
+        emoji: d.emoji,
+        sku: d.sku,
+        stageId: d.stage_id,
+        quantity: d.quantity,
+        price: d.price,
+        collection: d.collection,
+        thumbnailUrl: d.thumbnail_url,
+        parentId: d.parent_id,
+        childIds: d.child_ids,
+        mergedFrom: d.merged_from,
+        status: d.status,
+        salesChannel: d.sales_channel,
+        metadata: d.metadata,
+        created_at: d.created_at,
+        updated_at: d.updated_at
+    })) as KanbanItem[];
 }
 
 export async function getKanbanLogs(): Promise<ActivityLog[]> {
