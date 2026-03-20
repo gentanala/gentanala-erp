@@ -36,9 +36,13 @@ import {
     createProductionLog,
     getProductsForSPK
 } from '@/lib/actions/production';
-import { getProducts } from '@/lib/actions/inventory';
+import { 
+    getMaterials, 
+    getProductsWithBOM, 
+    getCollections 
+} from '@/lib/actions/master-data';
 import { toast } from 'sonner';
-import { MasterMaterial, MasterProduct, MasterCollection, MaterialCategory, DEMO_MATERIALS, DEMO_PRODUCTS, DEMO_COLLECTIONS, searchByCategories } from '@/lib/master-data';
+import { MasterMaterial, MasterProduct, MasterCollection, MaterialCategory, searchByCategories } from '@/lib/master-data';
 import { WATCH_BLUEPRINT, DEMO_ITEMS, calcStats, handlePassthrough, handleSplit, handleExit, handleAssemblyAllocation, handleAddItem, handleEditItem, handleDeleteItem, handleRejectItem } from '@/lib/production-engine';
 import {
     Dialog,
@@ -229,10 +233,10 @@ export default function ProductionPage() {
     const { profile } = useAuth();
     const userName = profile?.full_name || 'Admin';
 
-    // Master data state (in-memory, syncs to localStorage now)
-    const [materials, setMaterials] = useState<MasterMaterial[]>(DEMO_MATERIALS);
-    const [products, setProducts] = useState<MasterProduct[]>(DEMO_PRODUCTS);
-    const [collections, setCollections] = useState<MasterCollection[]>(DEMO_COLLECTIONS);
+    // Master data state
+    const [materials, setMaterials] = useState<MasterMaterial[]>([]);
+    const [products, setProducts] = useState<MasterProduct[]>([]);
+    const [collections, setCollections] = useState<MasterCollection[]>([]);
 
     // Core state
     const [blueprints, setBlueprints] = useState<WorkflowBlueprint[]>([WATCH_BLUEPRINT]);
@@ -250,27 +254,26 @@ export default function ProductionPage() {
     const handleRefresh = useCallback(async () => {
         setLoading(true);
         try {
-            const [kanbanData, logsData, invProducts] = await Promise.all([
+            const [
+                kanbanData, 
+                logsData, 
+                realMaterials,
+                realProducts,
+                realCollections
+            ] = await Promise.all([
                 getKanbanItems(),
                 getKanbanLogs(),
-                getProducts() // from inventory actions
+                getMaterials(),
+                getProductsWithBOM(),
+                getCollections()
             ]);
 
             // Sync with local state
             setItems(kanbanData);
             setLogs(logsData);
-
-            // Map inventory products to master products for MES internal use
-            const mappedProducts: MasterProduct[] = invProducts.map(p => ({
-                id: p.id,
-                sku: p.sku,
-                name: p.name,
-                collection: p.collection || '',
-                description: p.description || '',
-                bom: [] // In future, load BOM from Supabase or Master Data
-            }));
-            setProducts(mappedProducts);
-            setCollections(DEMO_COLLECTIONS);
+            setMaterials(realMaterials);
+            setProducts(realProducts);
+            setCollections(realCollections);
         } catch (error: any) {
             console.error("Gagal refresh board:", error);
             toast.error('Gagal memuat data board produksi');
