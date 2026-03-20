@@ -379,7 +379,10 @@ export async function saveKanbanItem(item: Partial<KanbanItem>): Promise<KanbanI
     };
 
     let result;
-    if (item.id && !item.id.includes('item-')) { // Check if it's a real UUID or temp ID
+    // Check if it's a valid UUID. Temp IDs look like 'item-...' or 'itm-...'
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.id || '');
+
+    if (item.id && isUuid) {
         const { data, error } = await supabase
             .from('kanban_items')
             .update(dbItem)
@@ -399,7 +402,28 @@ export async function saveKanbanItem(item: Partial<KanbanItem>): Promise<KanbanI
     }
 
     revalidatePath('/dashboard/production');
-    return result as unknown as KanbanItem;
+    
+    // Map result back to frontend format
+    const d = result;
+    return {
+        id: d.id,
+        name: d.name,
+        emoji: d.emoji,
+        sku: d.sku,
+        stageId: d.stage_id,
+        quantity: d.quantity,
+        price: d.price,
+        collection: d.collection,
+        thumbnailUrl: d.thumbnail_url,
+        parentId: d.parent_id,
+        childIds: d.child_ids,
+        mergedFrom: d.merged_from,
+        status: d.status,
+        salesChannel: d.sales_channel,
+        metadata: d.metadata,
+        created_at: d.created_at,
+        updated_at: d.updated_at
+    } as KanbanItem;
 }
 
 export async function deleteKanbanItem(id: string): Promise<void> {
