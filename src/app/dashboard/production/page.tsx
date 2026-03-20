@@ -32,6 +32,7 @@ import {
     getKanbanItems,
     getKanbanLogs,
     saveKanbanItem,
+    saveKanbanItems,
     deleteKanbanItem,
     createProductionLog,
     getProductsForSPK
@@ -504,16 +505,23 @@ export default function ProductionPage() {
                 movedQuantity, userName, blueprint.stages
             );
 
-            // Persist all affected items
-            for (const itm of result.items) {
-                await saveKanbanItem(itm);
-            }
-            await createProductionLog(result.log);
+            // Optimistic Update
+            setItems(result.items);
             setMoveDialogOpen(false);
-            handleRefresh();
+
+            // Background Persist
+            const changed = result.items.filter(ni => {
+                const oi = items.find(i => i.id === ni.id);
+                return !oi || oi.quantity !== ni.quantity || oi.stageId !== ni.stageId || oi.status !== ni.status;
+            });
+            
+            await saveKanbanItems(changed);
+            await createProductionLog(result.log);
+            handleRefresh(); // Ensure logs and sync
             toast.success(`➡️ Moved ${movedQuantity}x '${pendingItem.name}' → ${pendingTargetStage.name}`);
         } catch (err) {
             toast.error("Gagal simpan pergerakan");
+            handleRefresh(); // Rollback
         }
     }, [items, pendingItem, pendingTargetStage, userName, blueprint.stages, handleRefresh]);
 
@@ -527,17 +535,26 @@ export default function ProductionPage() {
                 items, pendingItem.id, pendingTargetStage.id,
                 consumedCount, yieldCount, childName, childSku, userName, blueprint.stages
             );
-            for (const itm of result.items) {
-                await saveKanbanItem(itm);
-            }
+            
+            // Optimistic Update
+            setItems(result.items);
+            setSplitDialogOpen(false);
+
+            // Background Persist
+            const changed = result.items.filter(ni => {
+                const oi = items.find(i => i.id === ni.id);
+                return !oi || oi.quantity !== ni.quantity || oi.stageId !== ni.stageId || oi.status !== ni.status;
+            });
+            
+            await saveKanbanItems(changed);
             for (const l of result.logs) {
                 await createProductionLog(l);
             }
-            setSplitDialogOpen(false);
-            handleRefresh();
+            handleRefresh(); // Ensure logs and sync
             toast.success(`✂️ Split '${pendingItem.name}' → ${yieldCount} × ${childName}`);
         } catch (err) {
             toast.error("Gagal simpan split");
+            handleRefresh(); // Rollback
         }
     }, [items, pendingItem, pendingTargetStage, userName, blueprint.stages, handleRefresh]);
 
@@ -550,23 +567,26 @@ export default function ProductionPage() {
             const result = handleAssemblyAllocation(
                 items, pendingItem.id, pendingTargetStage.id, allocateQty, product, userName, blueprint.stages
             );
-            for (const itm of result.items) {
-                if (itm.status === 'consumed') {
-                    // We could either update status to consumed or delete. 
-                    // Let's update status to keep historical links in DB.
-                    await saveKanbanItem(itm);
-                } else {
-                    await saveKanbanItem(itm);
-                }
-            }
+
+            // Optimistic Update
+            setItems(result.items);
+            setAssemblyAllocationDialogOpen(false);
+
+            // Background Persist
+            const changed = result.items.filter(ni => {
+                const oi = items.find(i => i.id === ni.id);
+                return !oi || JSON.stringify(oi) !== JSON.stringify(ni); 
+            });
+            
+            await saveKanbanItems(changed);
             for (const l of result.logs) {
                 await createProductionLog(l);
             }
-            setAssemblyAllocationDialogOpen(false);
-            handleRefresh();
+            handleRefresh(); // Sync logs and potentially create new items from refund
             toast.success(`🔧 Dialokasikan ${allocateQty}x ${pendingItem.name} ke Perakitan ${product.name}`);
         } catch (err) {
             toast.error("Gagal simpan alokasi perakitan");
+            handleRefresh(); // Rollback
         }
     }, [items, pendingItem, pendingTargetStage, userName, blueprint.stages, handleRefresh]);
 
@@ -589,15 +609,24 @@ export default function ProductionPage() {
                 items, pendingItem.id, pendingTargetStage.id,
                 channel, 0, userName, blueprint.stages
             );
-            for (const itm of result.items) {
-                await saveKanbanItem(itm);
-            }
-            await createProductionLog(result.log);
+            
+            // Optimistic Update
+            setItems(result.items);
             setSalesDialogOpen(false);
+
+            // Background Persist
+            const changed = result.items.filter(ni => {
+                const oi = items.find(i => i.id === ni.id);
+                return !oi || oi.status !== ni.status || oi.stageId !== ni.stageId;
+            });
+            
+            await saveKanbanItems(changed);
+            await createProductionLog(result.log);
             handleRefresh();
             toast.success(`💰 Sold '${pendingItem.name}' via ${channel}`);
         } catch (err) {
             toast.error("Gagal simpan data penjualan");
+            handleRefresh(); // Rollback
         }
     }, [items, pendingItem, pendingTargetStage, userName, blueprint.stages, handleRefresh]);
 
@@ -663,16 +692,20 @@ export default function ProductionPage() {
                 userName, blueprint.stages
             );
 
-            for (const itm of result.items) {
-                await saveKanbanItem(itm);
-            }
-            await createProductionLog(result.log);
+            // Optimistic
+            setItems(result.items);
+            setLogs(prev => [result.log, ...prev]);
             setAddDialogOpen(false);
-            handleRefresh();
+
+            // Persist
+            await saveKanbanItems(result.items.filter(ni => !items.find(i => i.id === ni.id) || ni.quantity !== items.find(i => i.id === ni.id)?.quantity));
+            await createProductionLog(result.log);
+            
             const stageName = blueprint.stages.find(s => s.id === addToStageId)?.name || '';
             toast.success(`Added '${newName}' to ${stageName}`);
         } catch (err) {
             toast.error("Gagal tambah item");
+            handleRefresh();
         }
     };
 

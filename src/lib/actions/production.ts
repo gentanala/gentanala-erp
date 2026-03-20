@@ -311,26 +311,7 @@ export async function getKanbanItems(): Promise<KanbanItem[]> {
         .order('created_at', { ascending: true });
 
     if (error) throw error;
-    
-    return (data || []).map((d: any) => ({
-        id: d.id,
-        name: d.name,
-        emoji: d.emoji,
-        sku: d.sku,
-        stageId: d.stage_id,
-        quantity: d.quantity,
-        price: d.price,
-        collection: d.collection,
-        thumbnailUrl: d.thumbnail_url,
-        parentId: d.parent_id,
-        childIds: d.child_ids,
-        mergedFrom: d.merged_from,
-        status: d.status,
-        salesChannel: d.sales_channel,
-        metadata: d.metadata,
-        created_at: d.created_at,
-        updated_at: d.updated_at
-    })) as KanbanItem[];
+    return (data || []).map(mapToFrontendItem);
 }
 
 export async function getKanbanLogs(): Promise<ActivityLog[]> {
@@ -342,9 +323,11 @@ export async function getKanbanLogs(): Promise<ActivityLog[]> {
         .limit(100);
 
     if (error) throw error;
+    return (data || []).map(mapToFrontendLog);
+}
 
-    // Map DB fields to ActivityLog interface
-    return (data || []).map((d: any) => ({
+function mapToFrontendLog(d: any): ActivityLog {
+    return {
         id: d.id,
         timestamp: d.timestamp,
         user: d.user_name,
@@ -354,57 +337,10 @@ export async function getKanbanLogs(): Promise<ActivityLog[]> {
         to_stage: d.to_stage,
         logicType: d.logic_type,
         metadata: d.metadata
-    })) as ActivityLog[];
+    };
 }
 
-export async function saveKanbanItem(item: Partial<KanbanItem>): Promise<KanbanItem> {
-    const supabase = await createClient();
-
-    const dbItem = {
-        name: item.name,
-        emoji: item.emoji,
-        sku: item.sku,
-        stage_id: item.stageId,
-        quantity: item.quantity,
-        price: item.price,
-        collection: item.collection,
-        thumbnail_url: item.thumbnailUrl,
-        parent_id: item.parentId,
-        child_ids: item.childIds,
-        merged_from: item.mergedFrom,
-        status: item.status,
-        sales_channel: item.salesChannel,
-        metadata: item.metadata,
-        updated_at: new Date().toISOString()
-    };
-
-    let result;
-    // Check if it's a valid UUID. Temp IDs look like 'item-...' or 'itm-...'
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.id || '');
-
-    if (item.id && isUuid) {
-        const { data, error } = await supabase
-            .from('kanban_items')
-            .update(dbItem)
-            .eq('id', item.id)
-            .select()
-            .single();
-        if (error) throw error;
-        result = data;
-    } else {
-        const { data, error } = await supabase
-            .from('kanban_items')
-            .insert({ ...dbItem, id: undefined }) // Let DB generate UUID if temp
-            .select()
-            .single();
-        if (error) throw error;
-        result = data;
-    }
-
-    revalidatePath('/dashboard/production');
-    
-    // Map result back to frontend format
-    const d = result;
+function mapToFrontendItem(d: any): KanbanItem {
     return {
         id: d.id,
         name: d.name,
@@ -423,7 +359,59 @@ export async function saveKanbanItem(item: Partial<KanbanItem>): Promise<KanbanI
         metadata: d.metadata,
         created_at: d.created_at,
         updated_at: d.updated_at
-    } as KanbanItem;
+    };
+}
+
+function mapToDbItem(item: Partial<KanbanItem>) {
+    return {
+        name: item.name,
+        emoji: item.emoji,
+        sku: item.sku,
+        stage_id: item.stageId,
+        quantity: item.quantity,
+        price: item.price,
+        collection: item.collection,
+        thumbnail_url: item.thumbnailUrl,
+        parent_id: item.parentId,
+        child_ids: item.childIds,
+        merged_from: item.mergedFrom,
+        status: item.status,
+        sales_channel: item.salesChannel,
+        metadata: item.metadata,
+        updated_at: new Date().toISOString()
+    };
+}
+
+export async function saveKanbanItem(item: Partial<KanbanItem>): Promise<KanbanItem> {
+    const supabase = await createClient();
+    const dbItem = mapToDbItem(item);
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.id || '');
+
+    let result;
+    if (item.id && isUuid) {
+        const { data, error } = await supabase.from('kanban_items').update(dbItem).eq('id', item.id).select().single();
+        if (error) throw error;
+        result = data;
+    } else {
+        const { data, error } = await supabase.from('kanban_items').insert({ ...dbItem, id: undefined }).select().single();
+        if (error) throw error;
+        result = data;
+    }
+    return mapToFrontendItem(result);
+}
+
+export async function saveKanbanItems(items: Partial<KanbanItem>[]): Promise<KanbanItem[]> {
+    const supabase = await createClient();
+    const results: KanbanItem[] = [];
+
+    // Split into updates and inserts
+    for (const item of items) {
+        const res = await saveKanbanItem(item);
+        results.push(res);
+    }
+    
+    revalidatePath('/dashboard/production');
+    return results;
 }
 
 export async function deleteKanbanItem(id: string): Promise<void> {
