@@ -38,12 +38,12 @@ const KanbanCardComponent = ({ item, stage, products, onDragStart, onEdit, onDel
                     {/* Emoji + Name */}
                     <div className="flex items-center gap-1.5 min-w-0">
                         {(item.emoji || stage.emoji) && <span className="text-sm shrink-0">{item.emoji || stage.emoji}</span>}
-                        <p className="font-bold text-xs text-gray-900 truncate">{item.name}</p>
+                        <p className={`font-bold text-xs text-gray-900 ${item.name.length > 25 ? 'leading-tight' : ''}`}>{item.name}</p>
                     </div>
 
                     {/* SKU */}
                     {item.sku && (
-                        <p className="text-[9px] font-mono text-gray-400 truncate">{item.sku}</p>
+                        <p className="text-[9px] font-mono text-gray-400 mt-0.5 break-all">{item.sku}</p>
                     )}
 
                     {/* Collection + Qty row */}
@@ -61,29 +61,10 @@ const KanbanCardComponent = ({ item, stage, products, onDragStart, onEdit, onDel
 
                     {/* Merge/Split/Assembly info */}
                     {item.metadata?.bomProgress ? (
-                        <div className="mt-2.5 p-2 bg-purple-50 rounded-lg text-[10px] border border-purple-100/50">
-                            <div className="flex items-center gap-1.5 font-bold text-purple-800 mb-1.5 pb-1.5 border-b border-purple-100">
-                                <Wrench className="h-3 w-3" />
-                                Perakitan {products.find(p => p.sku === item.metadata?.targetBomSku)?.name || item.metadata?.targetBomSku}
-                            </div>
-                            <div className="space-y-1">
-                                {products.find(p => p.sku === item.metadata?.targetBomSku)?.bom.map(bomItem => {
-                                    const progress = item.metadata?.bomProgress?.[bomItem.materialSku] || 0;
-                                    const required = bomItem.qty * item.quantity;
-                                    const isComplete = progress >= required;
-                                    return (
-                                        <div key={bomItem.materialSku} className="flex items-center justify-between text-[9px] font-medium leading-[14px]">
-                                            <span className={`${isComplete ? 'text-gray-400 line-through' : 'text-gray-700'} truncate mr-2 flex-1`}>
-                                                {bomItem.materialName} ({required})
-                                            </span>
-                                            <span className={`${isComplete ? 'text-emerald-600 font-bold' : 'text-purple-600'} shrink-0`}>
-                                                {isComplete ? '✓' : `${progress} / ${required}`}
-                                            </span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
+                        <AssembleProgress 
+                            item={item} 
+                            product={products.find(p => p.sku === item.metadata?.targetBomSku)} 
+                        />
                     ) : item.mergedFrom.length > 0 ? (
                         <p className="text-[9px] text-purple-500 mt-1">🔧 Merged from {item.mergedFrom.length} components</p>
                     ) : null}
@@ -156,6 +137,76 @@ const KanbanCardComponent = ({ item, stage, products, onDragStart, onEdit, onDel
                     </div>
                 )}
             </div>
+        </div>
+    );
+};
+
+const AssembleProgress = ({ item, product }: { item: KanbanItem; product?: MasterProduct }) => {
+    const [isExpanded, setIsExpanded] = React.useState(false);
+
+    if (!product) return <div className="mt-2 p-2 bg-purple-50 rounded-lg text-xs">Loading rakitan...</div>;
+
+    const totalRequired = product.bom.reduce((acc, b) => acc + (b.qty * item.quantity), 0);
+    const totalCurrent = product.bom.reduce((acc, b) => {
+        const prog = item.metadata?.bomProgress?.[b.materialSku] || 0;
+        return acc + prog;
+    }, 0);
+
+    const progressPercent = Math.min(100, (totalCurrent / totalRequired) * 100);
+
+    return (
+        <div className="mt-2.5 bg-purple-50 rounded-lg text-[10px] border border-purple-100/50 overflow-hidden">
+            {/* Header / Summary */}
+            <div 
+                className="p-2 cursor-pointer hover:bg-purple-100/50 transition-colors"
+                onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
+            >
+                <div className="flex items-center justify-between font-bold text-purple-800 mb-1">
+                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                        <Wrench className="h-3 w-3 shrink-0" />
+                        <span className="truncate">Perakitan: {product.name}</span>
+                    </div>
+                    <span className="text-[8px] text-purple-400 underline shrink-0 ml-1">
+                        {isExpanded ? 'Minimize' : 'Detail'}
+                    </span>
+                </div>
+
+                {/* Single line progress for better UX */}
+                <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[8px] text-purple-600 font-bold uppercase tracking-wider">
+                        <span>Komponen Terkumpul</span>
+                        <span>{totalCurrent} / {totalRequired}</span>
+                    </div>
+                    <div className="h-1 w-full bg-purple-200 rounded-full overflow-hidden">
+                        <div 
+                            className="h-full bg-purple-600 transition-all duration-500" 
+                            style={{ width: `${progressPercent}%` }} 
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {/* Collapsible Details */}
+            {isExpanded && (
+                <div className="px-2 pb-2 space-y-1 mt-1 border-t border-purple-100/30 pt-1.5">
+                    {product.bom.map(bomItem => {
+                        const progress = item.metadata?.bomProgress?.[bomItem.materialSku] || 0;
+                        const qtyTargetPerUnit = bomItem.qty;
+                        const currentRequired = bomItem.qty * item.quantity;
+                        const isComplete = progress >= currentRequired;
+                        return (
+                            <div key={bomItem.materialSku} className="flex items-center justify-between text-[9px] font-medium leading-[14px]">
+                                <span className={`${isComplete ? 'text-gray-400 line-through' : 'text-gray-700'} break-words mr-2 flex-1`}>
+                                    • {bomItem.materialName} ({qtyTargetPerUnit}/unit)
+                                </span>
+                                <span className={`${isComplete ? 'text-emerald-600 font-bold' : 'text-purple-600'} shrink-0`}>
+                                    {progress} / {currentRequired}
+                                </span>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
         </div>
     );
 };
