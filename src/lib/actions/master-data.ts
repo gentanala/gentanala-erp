@@ -34,6 +34,7 @@ export async function getMaterials(): Promise<MasterMaterial[]> {
             name: d.name,
             category: (extraInfo.category as MaterialCategory) || 'raw',
             unit: d.unit,
+            emoji: extraInfo.emoji || '',
             description: d.description || '',
             transformYields: Array.isArray(extraInfo.transformYields) ? extraInfo.transformYields : []
         };
@@ -57,6 +58,7 @@ export async function createMaterial(data: Omit<MasterMaterial, 'id'>): Promise<
             current_stock: 0,
             supplier_info: {
                 category: data.category,
+                emoji: data.emoji || '',
                 transformYields: data.transformYields || []
             }
         };
@@ -114,6 +116,7 @@ export async function updateMaterial(id: string, data: Partial<MasterMaterial>):
             ...existingInfo,
         };
         if (data.category !== undefined) newInfo.category = data.category;
+        if (data.emoji !== undefined) newInfo.emoji = data.emoji;
         if (data.transformYields !== undefined) newInfo.transformYields = data.transformYields;
 
         const updateData: Record<string, any> = {
@@ -188,6 +191,7 @@ export async function getProductsWithBOM(): Promise<MasterProduct[]> {
             id: p.id,
             sku: p.sku,
             name: p.name,
+            emoji: p.variant || '',
             collection: p.collection || '',
             description: p.description || '',
             bom: productBoms.map(b => ({

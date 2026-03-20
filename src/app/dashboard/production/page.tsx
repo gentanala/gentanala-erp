@@ -675,10 +675,11 @@ export default function ProductionPage() {
         setAddDialogOpen(true);
     }, []);
 
-    const handleSearchSelect = (item: { name: string; sku: string; collection?: string }) => {
+    const handleSearchSelect = (item: { name: string; sku: string; collection?: string; emoji?: string }) => {
         setNewName(item.name);
         setNewSku(item.sku);
         if (item.collection) setNewCollection(item.collection);
+        if (item.emoji) setNewEmoji(item.emoji);
     };
 
     const handleConfirmAdd = async () => {
@@ -1099,24 +1100,15 @@ export default function ProductionPage() {
                         )}
 
                         <div className="border-t border-gray-100 pt-3 space-y-3">
-                            <div className="grid grid-cols-4 gap-3">
-                                <div className="space-y-1 col-span-1">
-                                    <Label className="text-xs">Emoji</Label>
-                                    <Input
-                                        placeholder="📦"
-                                        maxLength={2}
-                                        value={newEmoji}
-                                        onChange={(e) => setNewEmoji(e.target.value)}
-                                        className="h-9"
-                                    />
-                                </div>
-                                <div className="space-y-1 col-span-3">
-                                    <Label className="text-xs">Nama Item</Label>
+                            <div className="space-y-1">
+                                <Label className="text-xs">Nama Item</Label>
+                                <div className="flex items-center gap-2">
+                                    {newEmoji && <span className="text-xl px-2 py-1 bg-gray-50 rounded-lg border">{newEmoji}</span>}
                                     <Input
                                         placeholder="Sub-assembly / WIP / part"
                                         value={newName}
                                         onChange={(e) => setNewName(e.target.value)}
-                                        className="h-9"
+                                        className="h-9 flex-1"
                                     />
                                 </div>
                             </div>
@@ -1149,20 +1141,11 @@ export default function ProductionPage() {
                         </DialogTitle>
                     </DialogHeader>
                     <div className="space-y-3 py-2">
-                        <div className="grid grid-cols-4 gap-3">
-                            <div className="space-y-1 col-span-1">
-                                <Label className="text-xs">Emoji</Label>
-                                <Input
-                                    placeholder="📦"
-                                    maxLength={2}
-                                    value={editEmoji}
-                                    onChange={(e) => setEditEmoji(e.target.value)}
-                                    className="h-9"
-                                />
-                            </div>
-                            <div className="space-y-1 col-span-3">
-                                <Label className="text-xs">Nama Item</Label>
-                                <Input value={editName} onChange={e => setEditName(e.target.value)} className="h-9" />
+                        <div className="space-y-1">
+                            <Label className="text-xs">Nama Item</Label>
+                            <div className="flex items-center gap-2">
+                                {editEmoji && <span className="text-xl px-2 py-1 bg-gray-50 rounded-lg border">{editEmoji}</span>}
+                                <Input value={editName} onChange={e => setEditName(e.target.value)} className="h-9 flex-1" />
                             </div>
                         </div>
                         <div className="space-y-2">

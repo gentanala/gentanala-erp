@@ -532,7 +532,7 @@ export default function SettingsPage() {
                                 <MaterialForm
                                     material={editingMaterial}
                                     materials={materials || []}
-                                    onSave={async (data) => {
+                                    onSave={async (data: Partial<MasterMaterial> & { name: string; sku: string; category: MaterialCategory; unit: string; emoji: string }) => {
                                         console.log('[SettingsPage] onSave CALLED with:', JSON.stringify(data));
                                         try {
                                             if (editingMaterial) {
@@ -567,6 +567,9 @@ export default function SettingsPage() {
                                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${CATEGORY_OPTIONS.find(c => c.value === mat.category)?.color || 'bg-gray-100'}`}>
                                             {(mat.category || 'raw').toUpperCase()}
                                         </span>
+                                        <div className="w-10 h-10 flex items-center justify-center bg-white rounded-lg shadow-sm border border-gray-200 text-xl">
+                                            {mat.emoji || '📦'}
+                                        </div>
                                         <div className="flex-1 min-w-0">
                                             <p className="font-semibold text-sm text-gray-900 truncate">{mat?.name || 'Untitled'}</p>
                                             <p className="text-[10px] font-mono text-gray-400">{mat?.sku || '-'} · {mat?.unit || 'pcs'}</p>
@@ -614,7 +617,7 @@ export default function SettingsPage() {
                                     product={editingProduct}
                                     materials={materials || []}
                                     collections={collections || []}
-                                    onSave={async (data) => {
+                                    onSave={async (data: { name: string; sku: string; collection: string; description: string; emoji: string; bom: BOMComponent[] }) => {
                                         try {
                                             const dbProductInput = {
                                                 sku: data.sku,
@@ -622,6 +625,7 @@ export default function SettingsPage() {
                                                 type: 'watch' as const,
                                                 collection: data.collection,
                                                 description: data.description,
+                                                variant: data.emoji || '',
                                                 sale_price: 0,
                                                 cost_price: 0,
                                                 current_stock: 0,
@@ -668,9 +672,12 @@ export default function SettingsPage() {
                                 {(products || []).map(prod => (
                                     <div key={prod.id} className="rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors group p-4">
                                         <div className="flex items-start gap-3">
-                                            <div className="flex-1 min-w-0">
-                                                <p className="font-bold text-sm text-gray-900 truncate">{prod?.name || 'Untitled'}</p>
-                                                <p className="text-[10px] font-mono text-gray-400">{prod?.sku || '-'} · {prod?.collection || ''}</p>
+                                        <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xl">{prod.emoji || '⌚'}</span>
+                                                    <p className="font-bold text-sm text-gray-900 truncate">{prod?.name || 'Untitled'}</p>
+                                                </div>
+                                                <p className="text-[10px] font-mono text-gray-400 ml-8">{prod?.sku || '-'} · {prod?.collection || ''}</p>
                                                 <div className="flex flex-wrap gap-1 mt-2">
                                                     {(prod.bom || []).map((comp, idx) => (
                                                         <span key={idx} className="text-[9px] bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded-md">
@@ -721,7 +728,7 @@ export default function SettingsPage() {
                             {(newColForm || editingCollection) && (
                                 <CollectionForm
                                     collection={editingCollection}
-                                    onSave={async (data) => {
+                                    onSave={async (data: { name: string; emoji?: string; color?: string }) => {
                                         try {
                                             if (editingCollection) {
                                                 setCollections(prev => (prev || []).map(c => c.id === editingCollection.id ? { ...c, ...data } : c));
@@ -745,8 +752,13 @@ export default function SettingsPage() {
                             <div className="space-y-1.5">
                                 {(collections || []).map(col => (
                                     <div key={col.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors group">
-                                        <div className={`w-3 h-3 rounded-full bg-${col?.color || 'gray'}-500`} />
-                                        <p className="flex-1 font-semibold text-sm text-gray-900">{col?.name || 'Untitled'}</p>
+                                        <div className={`w-1.5 h-8 rounded-full bg-${col.color || 'gray'}-500`} />
+                                        <div className="w-10 h-10 flex items-center justify-center bg-white rounded-lg shadow-sm border border-gray-200 text-xl">
+                                            {col.emoji || '🏷️'}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-semibold text-sm text-gray-900 truncate">{col?.name || 'Untitled'}</p>
+                                        </div>
                                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button onClick={() => { setEditingCollection(col); setNewColForm(false); }} className="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-blue-600">
                                                 <Pencil className="h-3.5 w-3.5" />
@@ -892,13 +904,14 @@ function MaterialForm({
 }: {
     material: MasterMaterial | null;
     materials: MasterMaterial[];
-    onSave: (data: Partial<MasterMaterial> & { name: string; sku: string; category: MaterialCategory; unit: string; transformYields?: string[] }) => Promise<void>;
+    onSave: (data: Partial<MasterMaterial> & { name: string; sku: string; category: MaterialCategory; unit: string; emoji: string; transformYields?: string[] }) => Promise<void>;
     onCancel: () => void;
 }) {
     const [name, setName] = useState(material?.name || '');
     const [sku, setSku] = useState(material?.sku || '');
     const [category, setCategory] = useState<MaterialCategory>(material?.category || 'raw');
     const [unit, setUnit] = useState(material?.unit || 'pcs');
+    const [emoji, setEmoji] = useState(material?.emoji || '');
     const [description, setDescription] = useState(material?.description || '');
     const [transformYields, setTransformYields] = useState<string[]>(material?.transformYields || []);
     const [isSaving, setIsSaving] = useState(false);
@@ -912,34 +925,49 @@ function MaterialForm({
                 <p className="text-sm font-bold text-blue-700">{material ? 'Edit Material' : 'Material Baru'}</p>
                 <button onClick={onCancel} className="p-1 rounded hover:bg-white"><X className="h-4 w-4" /></button>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="flex gap-4">
                 <div className="space-y-1">
-                    <Label className="text-xs">Nama *</Label>
-                    <Input value={name} onChange={e => setName(e.target.value)} className="h-10 bg-white" placeholder="e.g. Balok Kayu Jati" />
-                </div>
-                <div className="space-y-1">
-                    <Label className="text-xs">SKU *</Label>
-                    <Input value={sku} onChange={e => setSku(e.target.value)} className="h-10 bg-white" placeholder="e.g. RAW-JATI-001" />
-                </div>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1">
-                    <Label className="text-xs">Kategori</Label>
-                    <div className="flex gap-1">
-                        {CATEGORY_OPTIONS.map(opt => (
-                            <button key={opt.value} onClick={() => setCategory(opt.value)} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${category === opt.value ? `${opt.color} border-2 border-gray-800` : 'bg-white border-2 border-transparent'}`}>
-                                {opt.label}
-                            </button>
-                        ))}
+                    <Label className="text-xs text-blue-700 font-bold">Icon/Emoji</Label>
+                    <div className="flex flex-col gap-2">
+                        <Input value={emoji} onChange={e => setEmoji(e.target.value)} className="h-10 w-16 text-center text-lg bg-white" placeholder="⚙️" />
+                        <div className="flex flex-wrap gap-1 w-[120px]">
+                            {['🪵', '🔩', '⚙️', '💎', '🐄', '🪡', '📏', '📦', '🏠', '🔧', '🔨'].map(e => (
+                                <button key={e} onClick={() => setEmoji(e)} className="hover:scale-125 transition-transform text-sm">{e}</button>
+                            ))}
+                        </div>
                     </div>
                 </div>
-                <div className="space-y-1">
-                    <Label className="text-xs">Unit</Label>
-                    <Input value={unit} onChange={e => setUnit(e.target.value)} className="h-10 bg-white" placeholder="pcs" />
-                </div>
-                <div className="space-y-1">
-                    <Label className="text-xs">Deskripsi</Label>
-                    <Input value={description} onChange={e => setDescription(e.target.value)} className="h-10 bg-white" placeholder="Opsional" />
+                <div className="flex-1 space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                            <Label className="text-xs">Nama *</Label>
+                            <Input value={name} onChange={e => setName(e.target.value)} className="h-10 bg-white" placeholder="e.g. Balok Kayu Jati" />
+                        </div>
+                        <div className="space-y-1">
+                            <Label className="text-xs">SKU *</Label>
+                            <Input value={sku} onChange={e => setSku(e.target.value)} className="h-10 bg-white" placeholder="e.g. RAW-JATI-001" />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                        <div className="space-y-1">
+                            <Label className="text-xs">Kategori</Label>
+                            <div className="flex gap-1">
+                                {CATEGORY_OPTIONS.map(opt => (
+                                    <button key={opt.value} onClick={() => setCategory(opt.value)} className={`px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${category === opt.value ? `${opt.color} border-2 border-gray-800` : 'bg-white border-2 border-transparent'}`}>
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <Label className="text-xs">Unit</Label>
+                            <Input value={unit} onChange={e => setUnit(e.target.value)} className="h-10 bg-white" placeholder="pcs" />
+                        </div>
+                        <div className="space-y-1">
+                            <Label className="text-xs">Deskripsi</Label>
+                            <Input value={description} onChange={e => setDescription(e.target.value)} className="h-10 bg-white" placeholder="Opsional" />
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -992,6 +1020,7 @@ function MaterialForm({
                                 sku: sku.trim(), 
                                 category, 
                                 unit: unit.trim() || 'pcs', 
+                                emoji: emoji.trim(),
                                 description: description.trim(), 
                                 transformYields: transformYields.length > 0 ? transformYields : undefined 
                             });
@@ -1025,12 +1054,13 @@ function ProductForm({
     product: MasterProduct | null;
     materials: MasterMaterial[];
     collections: MasterCollection[];
-    onSave: (data: Partial<MasterProduct> & { name: string; sku: string; collection: string; bom: BOMComponent[] }) => void;
+    onSave: (data: { name: string; sku: string; collection: string; description: string; emoji: string; bom: BOMComponent[] }) => Promise<void>;
     onCancel: () => void;
 }) {
     const [name, setName] = useState(product?.name || '');
     const [sku, setSku] = useState(product?.sku || '');
     const [collection, setCollection] = useState(product?.collection || '');
+    const [emoji, setEmoji] = useState(product?.emoji || '');
     const [description, setDescription] = useState(product?.description || '');
     const [bom, setBom] = useState<BOMComponent[]>(product?.bom || []);
 
@@ -1065,26 +1095,41 @@ function ProductForm({
                 <p className="text-sm font-bold text-emerald-700">{product ? 'Edit Product' : 'Product Baru'}</p>
                 <button onClick={onCancel} className="p-1 rounded hover:bg-white"><X className="h-4 w-4" /></button>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="flex gap-4">
                 <div className="space-y-1">
-                    <Label className="text-xs">Nama *</Label>
-                    <Input value={name} onChange={e => setName(e.target.value)} className="h-10 bg-white" placeholder="e.g. Hutan Tropis 42mm" />
+                    <Label className="text-xs text-emerald-700 font-bold">Icon/Emoji</Label>
+                    <div className="flex flex-col gap-2">
+                        <Input value={emoji} onChange={e => setEmoji(e.target.value)} className="h-10 w-16 text-center text-lg bg-white" placeholder="⌚" />
+                        <div className="flex flex-wrap gap-1 w-[120px]">
+                            {['⌚', '🕰️', '📁', '🎒', '💼', '👔', '👑', '🧤'].map(e => (
+                                <button key={e} onClick={() => setEmoji(e)} className="hover:scale-125 transition-transform text-sm">{e}</button>
+                            ))}
+                        </div>
+                    </div>
                 </div>
-                <div className="space-y-1">
-                    <Label className="text-xs">SKU *</Label>
-                    <Input value={sku} onChange={e => setSku(e.target.value)} className="h-10 bg-white" placeholder="e.g. FG-HT42-BLK" />
+                <div className="flex-1 space-y-3">
+                    <div className="grid grid-cols-3 gap-3">
+                        <div className="space-y-1">
+                            <Label className="text-xs">Nama *</Label>
+                            <Input value={name} onChange={e => setName(e.target.value)} className="h-10 bg-white" placeholder="e.g. Hutan Tropis 42mm" />
+                        </div>
+                        <div className="space-y-1">
+                            <Label className="text-xs">SKU *</Label>
+                            <Input value={sku} onChange={e => setSku(e.target.value)} className="h-10 bg-white" placeholder="e.g. FG-HT42-BLK" />
+                        </div>
+                        <div className="space-y-1">
+                            <Label className="text-xs">Collection *</Label>
+                            <select value={collection} onChange={e => setCollection(e.target.value)} className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">
+                                <option value="">Pilih...</option>
+                                {(collections || []).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                            </select>
+                        </div>
+                    </div>
+                    <div className="space-y-1">
+                        <Label className="text-xs">Deskripsi</Label>
+                        <Input value={description} onChange={e => setDescription(e.target.value)} className="h-10 bg-white" placeholder="Opsional" />
+                    </div>
                 </div>
-                <div className="space-y-1">
-                    <Label className="text-xs">Collection *</Label>
-                    <select value={collection} onChange={e => setCollection(e.target.value)} className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm">
-                        <option value="">Pilih...</option>
-                        {(collections || []).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                    </select>
-                </div>
-            </div>
-            <div className="space-y-1">
-                <Label className="text-xs">Deskripsi</Label>
-                <Input value={description} onChange={e => setDescription(e.target.value)} className="h-10 bg-white" placeholder="Opsional" />
             </div>
 
             {/* BOM Editor */}
@@ -1124,7 +1169,7 @@ function ProductForm({
 
             <div className="flex justify-end gap-2 pt-1">
                 <Button variant="outline" size="sm" onClick={onCancel} className="h-9">Batal</Button>
-                <Button size="sm" onClick={() => { if (name && sku && collection) onSave({ name, sku, collection, description, bom }); }} className="h-9 gap-1.5" disabled={!name || !sku || !collection}>
+                <Button size="sm" onClick={() => { if (name && sku && collection) onSave({ name, sku, collection, description, emoji, bom }); }} className="h-9 gap-1.5" disabled={!name || !sku || !collection}>
                     <Save className="h-3.5 w-3.5" /> Simpan
                 </Button>
             </div>
@@ -1138,10 +1183,11 @@ function CollectionForm({
     onCancel,
 }: {
     collection: MasterCollection | null;
-    onSave: (data: { name: string; color?: string }) => void;
+    onSave: (data: { name: string; emoji?: string; color?: string }) => void;
     onCancel: () => void;
 }) {
     const [name, setName] = useState(collection?.name || '');
+    const [emoji, setEmoji] = useState(collection?.emoji || '');
     const [color, setColor] = useState(collection?.color || '');
 
     const colorOptions = ['emerald', 'amber', 'indigo', 'sky', 'rose', 'violet', 'teal', 'orange'];
@@ -1152,25 +1198,40 @@ function CollectionForm({
                 <p className="text-sm font-bold text-indigo-700">{collection ? 'Edit Collection' : 'Collection Baru'}</p>
                 <button onClick={onCancel} className="p-1 rounded hover:bg-white"><X className="h-4 w-4" /></button>
             </div>
-            <div className="space-y-1">
-                <Label className="text-xs">Nama *</Label>
-                <Input value={name} onChange={e => setName(e.target.value)} className="h-10 bg-white" placeholder="e.g. Archipelago" />
-            </div>
-            <div className="space-y-1">
-                <Label className="text-xs">Warna</Label>
-                <div className="flex gap-2">
-                    {colorOptions.map(c => (
-                        <button
-                            key={c}
-                            onClick={() => setColor(c)}
-                            className={`w-8 h-8 rounded-full bg-${c}-500 transition-all ${color === c ? 'ring-2 ring-offset-2 ring-gray-800 scale-110' : 'hover:scale-110'}`}
-                        />
-                    ))}
+            <div className="flex gap-4">
+                <div className="space-y-1">
+                    <Label className="text-xs text-indigo-700 font-bold">Icon/Emoji</Label>
+                    <div className="flex flex-col gap-2">
+                        <Input value={emoji} onChange={e => setEmoji(e.target.value)} className="h-10 w-16 text-center text-lg bg-white" placeholder="🏷️" />
+                        <div className="flex flex-wrap gap-1 w-[120px]">
+                            {['🎨', '📂', '📁', '🎒', '💼', '👔', '👑', '🧤', '🏷️', '✨'].map(e => (
+                                <button key={e} onClick={() => setEmoji(e)} className="hover:scale-125 transition-transform text-sm">{e}</button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+                <div className="flex-1 space-y-3">
+                    <div className="space-y-1">
+                        <Label className="text-xs">Nama *</Label>
+                        <Input value={name} onChange={e => setName(e.target.value)} className="h-10 bg-white" placeholder="e.g. Archipelago" />
+                    </div>
+                    <div className="space-y-1">
+                        <Label className="text-xs">Warna</Label>
+                        <div className="flex gap-2">
+                            {colorOptions.map(c => (
+                                <button
+                                    key={c}
+                                    onClick={() => setColor(c)}
+                                    className={`w-8 h-8 rounded-full bg-${c}-500 transition-all ${color === c ? 'ring-2 ring-offset-2 ring-gray-800 scale-110' : 'hover:scale-110'}`}
+                                />
+                            ))}
+                        </div>
+                    </div>
                 </div>
             </div>
             <div className="flex justify-end gap-2 pt-1">
                 <Button variant="outline" size="sm" onClick={onCancel} className="h-9">Batal</Button>
-                <Button size="sm" onClick={() => { if (name) onSave({ name, color }); }} className="h-9 gap-1.5" disabled={!name}>
+                <Button size="sm" onClick={() => { if (name) onSave({ name, emoji, color }); }} className="h-9 gap-1.5" disabled={!name}>
                     <Save className="h-3.5 w-3.5" /> Simpan
                 </Button>
             </div>

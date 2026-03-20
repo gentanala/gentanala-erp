@@ -16,6 +16,7 @@ export interface MasterMaterial {
     category: MaterialCategory;
     unit: string;           // pcs, sheet, block, unit
     description?: string;
+    emoji?: string;
     transformYields?: string[]; // Array of SKUs this material can be transformed into
 }
 
@@ -32,12 +33,14 @@ export interface MasterProduct {
     collection: string;
     bom: BOMComponent[];    // Bill of Materials — what's needed for assembly
     description?: string;
+    emoji?: string;
 }
 
 export interface MasterCollection {
     id: string;
     name: string;
     color?: string;         // Optional badge color
+    emoji?: string;
 }
 
 // ============================================
@@ -54,20 +57,20 @@ function nextMasterId(prefix: string) {
 // ============================================
 
 export const DEMO_MATERIALS: MasterMaterial[] = [
-    { id: 'mat-001', name: 'Balok Kayu Jati', sku: 'RAW-JATI-001', category: 'raw', unit: 'block', description: 'Kayu jati grade A untuk casing', transformYields: ['WIP-CASE-HT'] },
-    { id: 'mat-002', name: 'Balok Kayu Sono', sku: 'RAW-SONO-001', category: 'raw', unit: 'block', description: 'Kayu sonokeling untuk casing premium', transformYields: ['WIP-CASE-KL'] },
-    { id: 'mat-003', name: 'Lembaran Kulit Sapi', sku: 'RAW-KULIT-001', category: 'raw', unit: 'sheet', description: 'Kulit sapi genuine leather untuk strap', transformYields: ['WIP-STRAP-BR', 'WIP-STRAP-BK'] },
-    { id: 'mat-004', name: 'Mesin Miyota 2035', sku: 'RAW-MIYOTA-001', category: 'raw', unit: 'pcs', description: 'Movement Miyota Japan' },
-    { id: 'mat-005', name: 'Mesin Seiko NH35', sku: 'RAW-SEIKO-001', category: 'raw', unit: 'pcs', description: 'Movement Seiko automatic' },
-    { id: 'mat-006', name: 'Kaca Sapphire 42mm', sku: 'RAW-SAPH-42', category: 'raw', unit: 'pcs', description: 'Kaca sapphire crystal 42mm' },
-    { id: 'mat-007', name: 'Kaca Sapphire 38mm', sku: 'RAW-SAPH-38', category: 'raw', unit: 'pcs', description: 'Kaca sapphire crystal 38mm' },
-    { id: 'mat-008', name: 'Crown Stainless', sku: 'RAW-CROWN-SS', category: 'raw', unit: 'pcs', description: 'Crown stainless steel' },
-    { id: 'mat-009', name: 'Buckle Stainless', sku: 'RAW-BUCKLE-SS', category: 'raw', unit: 'pcs', description: 'Buckle strap stainless' },
+    { id: 'mat-001', name: 'Balok Kayu Jati', sku: 'RAW-JATI-001', category: 'raw', unit: 'block', emoji: '🪵', description: 'Kayu jati grade A untuk casing', transformYields: ['WIP-CASE-HT'] },
+    { id: 'mat-002', name: 'Balok Kayu Sono', sku: 'RAW-SONO-001', category: 'raw', unit: 'block', emoji: '🪵', description: 'Kayu sonokeling untuk casing premium', transformYields: ['WIP-CASE-KL'] },
+    { id: 'mat-003', name: 'Lembaran Kulit Sapi', sku: 'RAW-KULIT-001', category: 'raw', unit: 'sheet', emoji: '🐄', description: 'Kulit sapi genuine leather untuk strap', transformYields: ['WIP-STRAP-BR', 'WIP-STRAP-BK'] },
+    { id: 'mat-004', name: 'Mesin Miyota 2035', sku: 'RAW-MIYOTA-001', category: 'raw', unit: 'pcs', emoji: '⚙️', description: 'Movement Miyota Japan' },
+    { id: 'mat-005', name: 'Mesin Seiko NH35', sku: 'RAW-SEIKO-001', category: 'raw', unit: 'pcs', emoji: '⚙️', description: 'Movement Seiko automatic' },
+    { id: 'mat-006', name: 'Kaca Sapphire 42mm', sku: 'RAW-SAPH-42', category: 'raw', unit: 'pcs', emoji: '💎', description: 'Kaca sapphire crystal 42mm' },
+    { id: 'mat-007', name: 'Kaca Sapphire 38mm', sku: 'RAW-SAPH-38', category: 'raw', unit: 'pcs', emoji: '💎', description: 'Kaca sapphire crystal 38mm' },
+    { id: 'mat-008', name: 'Crown Stainless', sku: 'RAW-CROWN-SS', category: 'raw', unit: 'pcs', emoji: '🔘', description: 'Crown stainless steel' },
+    { id: 'mat-009', name: 'Buckle Stainless', sku: 'RAW-BUCKLE-SS', category: 'raw', unit: 'pcs', emoji: '⛓️', description: 'Buckle strap stainless' },
     // WIP components
-    { id: 'mat-010', name: 'Casing Hutan Tropis', sku: 'WIP-CASE-HT', category: 'wip', unit: 'pcs', description: 'Casing kayu jati finish Hutan Tropis' },
-    { id: 'mat-011', name: 'Casing Kaliandra', sku: 'WIP-CASE-KL', category: 'wip', unit: 'pcs', description: 'Casing kayu sono finish Kaliandra' },
-    { id: 'mat-012', name: 'Strap Kulit Brown', sku: 'WIP-STRAP-BR', category: 'wip', unit: 'pcs', description: 'Strap kulit sapi warna brown' },
-    { id: 'mat-013', name: 'Strap Kulit Black', sku: 'WIP-STRAP-BK', category: 'wip', unit: 'pcs', description: 'Strap kulit sapi warna black' },
+    { id: 'mat-010', name: 'Casing Hutan Tropis', sku: 'WIP-CASE-HT', category: 'wip', unit: 'pcs', emoji: '🏠', description: 'Casing kayu jati finish Hutan Tropis' },
+    { id: 'mat-011', name: 'Casing Kaliandra', sku: 'WIP-CASE-KL', category: 'wip', unit: 'pcs', emoji: '🏠', description: 'Casing kayu sono finish Kaliandra' },
+    { id: 'mat-012', name: 'Strap Kulit Brown', sku: 'WIP-STRAP-BR', category: 'wip', unit: 'pcs', emoji: '🪡', description: 'Strap kulit sapi warna brown' },
+    { id: 'mat-013', name: 'Strap Kulit Black', sku: 'WIP-STRAP-BK', category: 'wip', unit: 'pcs', emoji: '🪡', description: 'Strap kulit sapi warna black' },
 ];
 
 export const DEMO_COLLECTIONS: MasterCollection[] = [
@@ -82,6 +85,7 @@ export const DEMO_PRODUCTS: MasterProduct[] = [
         id: 'prod-001',
         name: 'Hutan Tropis 42mm',
         sku: 'FG-HT42-BLK',
+        emoji: '⌚',
         collection: 'Hutan Tropis',
         description: 'Jam tangan kayu jati 42mm collection Hutan Tropis',
         bom: [
@@ -224,22 +228,22 @@ export function searchAll(
     materials: MasterMaterial[],
     products: MasterProduct[],
     query: string
-): Array<{ type: 'material' | 'product'; name: string; sku: string; collection?: string; category?: MaterialCategory }> {
+): Array<{ type: 'material' | 'product'; name: string; sku: string; emoji?: string; collection?: string; category?: MaterialCategory }> {
     const q = query.toLowerCase().trim();
-    const results: Array<{ type: 'material' | 'product'; name: string; sku: string; collection?: string; category?: MaterialCategory }> = [];
+    const results: Array<{ type: 'material' | 'product'; name: string; sku: string; emoji?: string; collection?: string; category?: MaterialCategory }> = [];
 
     const matchedMats = q
         ? materials.filter(m => m.name.toLowerCase().includes(q) || m.sku.toLowerCase().includes(q))
         : materials;
     matchedMats.slice(0, 6).forEach(m => {
-        results.push({ type: 'material', name: m.name, sku: m.sku, category: m.category });
+        results.push({ type: 'material', name: m.name, sku: m.sku, emoji: m.emoji, category: m.category });
     });
 
     const matchedProds = q
         ? products.filter(p => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q))
         : products;
     matchedProds.slice(0, 4).forEach(p => {
-        results.push({ type: 'product', name: p.name, sku: p.sku, collection: p.collection });
+        results.push({ type: 'product', name: p.name, sku: p.sku, emoji: p.emoji, collection: p.collection });
     });
 
     return results.slice(0, 10);
@@ -255,9 +259,9 @@ export function searchByCategories(
     products: MasterProduct[],
     query: string,
     allowedCategories: MaterialCategory[]
-): Array<{ type: 'material' | 'product'; name: string; sku: string; collection?: string; category?: MaterialCategory }> {
+): Array<{ type: 'material' | 'product'; name: string; sku: string; emoji?: string; collection?: string; category?: MaterialCategory }> {
     const q = query.toLowerCase().trim();
-    const results: Array<{ type: 'material' | 'product'; name: string; sku: string; collection?: string; category?: MaterialCategory }> = [];
+    const results: Array<{ type: 'material' | 'product'; name: string; sku: string; emoji?: string; collection?: string; category?: MaterialCategory }> = [];
 
     // Filter materials by allowed categories (raw, wip)
     const matCategories = allowedCategories.filter((c): c is 'raw' | 'wip' => c === 'raw' || c === 'wip');
@@ -267,7 +271,7 @@ export function searchByCategories(
             ? filteredMats.filter(m => m.name.toLowerCase().includes(q) || m.sku.toLowerCase().includes(q))
             : filteredMats;
         matchedMats.slice(0, 8).forEach(m => {
-            results.push({ type: 'material', name: m.name, sku: m.sku, category: m.category });
+            results.push({ type: 'material', name: m.name, sku: m.sku, emoji: m.emoji, category: m.category });
         });
     }
 
@@ -277,7 +281,7 @@ export function searchByCategories(
             ? products.filter(p => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q))
             : products;
         matchedProds.slice(0, 6).forEach(p => {
-            results.push({ type: 'product', name: p.name, sku: p.sku, collection: p.collection, category: 'finished' });
+            results.push({ type: 'product', name: p.name, sku: p.sku, emoji: p.emoji, collection: p.collection, category: 'finished' });
         });
     }
 

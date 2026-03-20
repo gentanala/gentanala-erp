@@ -123,18 +123,6 @@ const KanbanCardComponent = ({ item, stage, products, onDragStart, onEdit, onDel
                     />
                 </div>
             )}
-            
-            {item.mergedFrom.length > 0 && (
-                <p className="text-[8px] font-bold text-indigo-400 mt-1 pl-5 uppercase tracking-tighter">
-                   ⚡ {item.mergedFrom.length} Items Merged
-                </p>
-            )}
-
-            {item.parentId && !item.metadata?.bomProgress && !item.mergedFrom.length && (
-                <p className="text-[7px] text-amber-500 mt-1 pl-5 opacity-60 font-bold uppercase">
-                    ✂️ Form Split
-                </p>
-            )}
         </div>
     );
 };
