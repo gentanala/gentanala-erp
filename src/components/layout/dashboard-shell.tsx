@@ -22,6 +22,7 @@ export function DashboardShell({ children, header }: DashboardShellProps) {
         if (!loading && !profile) {
             // Loading done but no profile — redirect immediately
             console.warn('[DashboardShell] No profile after auth loaded — redirecting to login');
+            document.cookie.split(";").forEach((c) => { document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); });
             window.location.href = '/auth/login';
             return;
         }
@@ -32,6 +33,7 @@ export function DashboardShell({ children, header }: DashboardShellProps) {
                 console.warn('[DashboardShell] Auth loading timeout — redirecting to login');
                 localStorage.clear();
                 sessionStorage.clear();
+                document.cookie.split(";").forEach((c) => { document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); });
                 window.location.href = '/auth/login';
             }, 6000);
         }
@@ -66,9 +68,24 @@ export function DashboardShell({ children, header }: DashboardShellProps) {
                         <Button 
                             variant="destructive" 
                             className="w-full py-6 rounded-xl font-bold shadow-lg shadow-red-100 hover:scale-[1.02] active:scale-[0.98] transition-all"
-                            onClick={() => {
+                            onClick={async () => {
+                                try {
+                                    const { createClient } = await import('@/lib/supabase/client');
+                                    const supabase = createClient();
+                                    await supabase.auth.signOut();
+                                } catch (e) {
+                                    console.error('Failed to sign out from Supabase', e);
+                                }
                                 localStorage.clear();
                                 sessionStorage.clear();
+                                
+                                // Manually clear Supabase cookies just in case
+                                document.cookie.split(";").forEach((c) => {
+                                    document.cookie = c
+                                        .replace(/^ +/, "")
+                                        .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+                                });
+                                
                                 window.location.href = '/auth/login';
                             }}
                         >

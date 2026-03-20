@@ -92,18 +92,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                             setProfile(getEnrichedProfile(profileRecord || null, session.user));
                         }
                     } else if (mounted) {
-                        // No session — redirect to login if on a protected route
+                        // No session — clear cookies to prevent middleware redirect loops, then redirect to login
                         if (window.location.pathname.startsWith('/dashboard')) {
                             console.warn('[Auth] No session found — redirecting to login');
+                            document.cookie.split(";").forEach((c) => { document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); });
                             window.location.href = '/auth/login';
                             return;
                         }
                     }
                 } catch (raceErr: any) {
                     console.warn('[Auth] Session retrieval failed or timed out:', raceErr.message);
-                    // Timeout or error — redirect to login if on protected route
+                    // Timeout or error — clear cookies to break potential loops and redirect to login
                     if (mounted && window.location.pathname.startsWith('/dashboard')) {
                         console.warn('[Auth] Redirecting to login after timeout');
+                        document.cookie.split(";").forEach((c) => { document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); });
                         window.location.href = '/auth/login';
                         return;
                     }
