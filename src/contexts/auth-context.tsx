@@ -91,10 +91,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         if (mounted) {
                             setProfile(getEnrichedProfile(profileRecord || null, session.user));
                         }
+                    } else if (mounted) {
+                        // No session — redirect to login if on a protected route
+                        if (window.location.pathname.startsWith('/dashboard')) {
+                            console.warn('[Auth] No session found — redirecting to login');
+                            window.location.href = '/auth/login';
+                            return;
+                        }
                     }
                 } catch (raceErr: any) {
                     console.warn('[Auth] Session retrieval failed or timed out:', raceErr.message);
-                    // Continue with null profile, allow loading to finish
+                    // Timeout or error — redirect to login if on protected route
+                    if (mounted && window.location.pathname.startsWith('/dashboard')) {
+                        console.warn('[Auth] Redirecting to login after timeout');
+                        window.location.href = '/auth/login';
+                        return;
+                    }
                 }
             } catch (err) {
                 console.error("[Auth] Fatal Init Error:", err);

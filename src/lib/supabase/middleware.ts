@@ -34,9 +34,19 @@ export async function updateSession(request: NextRequest) {
         }
     );
 
-    const {
-        data: { user },
-    } = await supabase.auth.getUser();
+    // Race getUser against a 3s timeout to avoid edge runtime hanging
+    let user = null;
+    try {
+        const getUserPromise = supabase.auth.getUser();
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('MIDDLEWARE_TIMEOUT')), 3000)
+        );
+        const result = await Promise.race([getUserPromise, timeoutPromise]) as any;
+        user = result?.data?.user ?? null;
+    } catch {
+        // Timeout or error — treat as unauthenticated
+        user = null;
+    }
 
     // Protected routes - redirect to login if not authenticated
     const isProtectedRoute = request.nextUrl.pathname.startsWith('/dashboard');
