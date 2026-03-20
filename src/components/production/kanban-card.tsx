@@ -24,73 +24,49 @@ interface KanbanCardProps {
 }
 
 const KanbanCardComponent = ({ item, stage, products, onDragStart, onEdit, onDelete, onReject, onSendToWorkflow, onAllocate }: KanbanCardProps) => {
-
     return (
         <div
             draggable
             onDragStart={(e) => onDragStart(e, item.id)}
-            className={`group relative cursor-grab active:cursor-grabbing rounded-xl border-2 bg-white p-2.5 shadow-sm transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 active:shadow-md ${stage.color.border}`}
-            style={{ minHeight: '60px' }}
+            className={`group relative cursor-grab active:cursor-grabbing rounded-lg border bg-white p-2 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 active:shadow-sm ${stage.color.border}`}
         >
-            <div className="flex items-start gap-3">
-                <GripVertical className="h-5 w-5 mt-0.5 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+                {/* Drag handle - extremely small and subtle */}
+                <GripVertical className="h-3.5 w-3.5 text-gray-200 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                
+                <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
                     {/* Emoji + Name */}
-                    <div className="flex items-center gap-1.5 min-w-0">
-                        {(item.emoji || stage.emoji) && <span className="text-sm shrink-0">{item.emoji || stage.emoji}</span>}
-                        <p className={`font-bold text-xs text-gray-900 ${item.name.length > 25 ? 'leading-tight' : ''}`}>{item.name}</p>
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                        {(item.emoji || stage.emoji) && <span className="text-xs shrink-0">{item.emoji || stage.emoji}</span>}
+                        <p className="font-bold text-[11px] text-gray-800 leading-tight">
+                            {item.name}
+                        </p>
                     </div>
 
-                    {/* SKU */}
-                    {item.sku && (
-                        <p className="text-[9px] font-mono text-gray-400 mt-0.5 break-all">{item.sku}</p>
-                    )}
-
-                    {/* Collection + Qty row */}
-                    <div className="flex items-center justify-between mt-1.5">
-                        {item.collection ? (
-                            <span className={`inline-block text-[9px] font-semibold px-1.5 py-px rounded-full ${stage.color.bg} ${stage.color.text} truncate max-w-[80px]`}>
-                                {item.collection}
-                            </span>
-                        ) : <span />}
-                        <div className="flex items-center gap-1 shrink-0">
-                            <Package className="h-3 w-3 text-gray-400" />
-                            <span className="text-[11px] font-bold text-gray-700">{item.quantity} pcs</span>
-                        </div>
+                    {/* Quantity - Inline and Bold */}
+                    <div className="shrink-0 flex items-center bg-gray-50/50 px-1.5 py-0.5 rounded border border-gray-100/50">
+                        <span className="text-[10px] font-black text-gray-700">{item.quantity}</span>
+                        <span className="text-[8px] font-bold text-gray-400 ml-0.5 uppercase">pcs</span>
                     </div>
-
-                    {/* Merge/Split/Assembly info */}
-                    {item.metadata?.bomProgress ? (
-                        <AssembleProgress 
-                            item={item} 
-                            product={products.find(p => p.sku === item.metadata?.targetBomSku)} 
-                        />
-                    ) : item.mergedFrom.length > 0 ? (
-                        <p className="text-[9px] text-purple-500 mt-1">🔧 Merged from {item.mergedFrom.length} components</p>
-                    ) : null}
-
-                    {item.parentId && !item.metadata?.bomProgress && !item.mergedFrom.length && (
-                        <p className="text-[8px] text-amber-500 mt-1 opacity-70">✂️ Split from parent</p>
-                    )}
                 </div>
 
-                {/* Three-dot menu */}
+                {/* Three-dot menu - very compact */}
                 {(onEdit || onDelete || onSendToWorkflow || (onAllocate && stage.logicType === 'merge' && !item.metadata?.targetBomSku)) && (
-                    <div className="relative shrink-0 flex items-start">
+                    <div className="relative shrink-0">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <button
                                     onClick={(e) => e.stopPropagation()}
-                                    className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                                    className="p-1 rounded hover:bg-gray-100 text-gray-300 hover:text-gray-500"
                                 >
-                                    <MoreVertical className="h-4 w-4" />
+                                    <MoreVertical className="h-3 w-3" />
                                 </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-[180px] rounded-xl shadow-xl">
                                 {onAllocate && stage.logicType === 'merge' && !item.metadata?.targetBomSku && (
                                     <DropdownMenuItem
                                         onClick={(e) => { e.stopPropagation(); onAllocate(item); }}
-                                        className="gap-2.5 text-sm cursor-pointer text-purple-700 focus:text-purple-800 focus:bg-purple-50"
+                                        className="gap-2.5 text-sm cursor-pointer text-purple-700"
                                     >
                                         <Wrench className="h-3.5 w-3.5" />
                                         Alokasikan ke Rakitan
@@ -99,7 +75,7 @@ const KanbanCardComponent = ({ item, stage, products, onDragStart, onEdit, onDel
                                 {onSendToWorkflow && (
                                     <DropdownMenuItem
                                         onClick={(e) => { e.stopPropagation(); onSendToWorkflow(item); }}
-                                        className="gap-2.5 text-sm cursor-pointer text-indigo-700 focus:text-indigo-800 focus:bg-indigo-50"
+                                        className="gap-2.5 text-sm cursor-pointer text-indigo-700"
                                     >
                                         <ArrowRight className="h-3.5 w-3.5" />
                                         Kirim ke Flow Lain
@@ -117,7 +93,7 @@ const KanbanCardComponent = ({ item, stage, products, onDragStart, onEdit, onDel
                                 {onReject && (
                                     <DropdownMenuItem
                                         onClick={(e) => { e.stopPropagation(); onReject(item); }}
-                                        className="gap-2.5 text-sm cursor-pointer text-orange-600 focus:text-orange-700 focus:bg-orange-50"
+                                        className="gap-2.5 text-sm cursor-pointer text-orange-600 font-bold"
                                     >
                                         <Trash2 className="h-3.5 w-3.5" />
                                         Tandai Gagal
@@ -126,7 +102,7 @@ const KanbanCardComponent = ({ item, stage, products, onDragStart, onEdit, onDel
                                 {onDelete && (
                                     <DropdownMenuItem
                                         onClick={(e) => { e.stopPropagation(); onDelete(item); }}
-                                        className="gap-2.5 text-sm cursor-pointer text-red-600 focus:text-red-700 focus:bg-red-50"
+                                        className="gap-2.5 text-sm cursor-pointer text-red-600"
                                     >
                                         <Trash2 className="h-3.5 w-3.5" />
                                         Hapus
@@ -137,6 +113,28 @@ const KanbanCardComponent = ({ item, stage, products, onDragStart, onEdit, onDel
                     </div>
                 )}
             </div>
+
+            {/* Complex Content (Split/Assembly) - Stays minimal unless opened */}
+            {item.metadata?.bomProgress && (
+                <div className="mt-1 border-t border-gray-100 pt-1">
+                    <AssembleProgress 
+                        item={item} 
+                        product={products.find(p => p.sku === item.metadata?.targetBomSku)} 
+                    />
+                </div>
+            )}
+            
+            {item.mergedFrom.length > 0 && (
+                <p className="text-[8px] font-bold text-indigo-400 mt-1 pl-5 uppercase tracking-tighter">
+                   ⚡ {item.mergedFrom.length} Items Merged
+                </p>
+            )}
+
+            {item.parentId && !item.metadata?.bomProgress && !item.mergedFrom.length && (
+                <p className="text-[7px] text-amber-500 mt-1 pl-5 opacity-60 font-bold uppercase">
+                    ✂️ Form Split
+                </p>
+            )}
         </div>
     );
 };
