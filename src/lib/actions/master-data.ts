@@ -48,7 +48,6 @@ export async function createMaterial(data: Omit<MasterMaterial, 'id'>): Promise<
             name: data.name,
             unit: data.unit,
             description: data.description || null,
-            created_by: user?.id || null,
             min_stock_threshold: 5,
             is_active: true,
             cost_per_unit: 0,
