@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/layout/app-sidebar';
@@ -13,7 +14,34 @@ interface DashboardShellProps {
 }
 
 export function DashboardShell({ children, header }: DashboardShellProps) {
-    const { loading } = useAuth();
+    const { loading, profile } = useAuth();
+    const redirectTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Auto-redirect to login if loading takes too long (6s) or no profile after loading
+    useEffect(() => {
+        if (!loading && !profile) {
+            // Loading done but no profile — redirect immediately
+            console.warn('[DashboardShell] No profile after auth loaded — redirecting to login');
+            window.location.href = '/auth/login';
+            return;
+        }
+
+        if (loading) {
+            // Set a safety timer: if still loading after 6s, redirect to login
+            redirectTimerRef.current = setTimeout(() => {
+                console.warn('[DashboardShell] Auth loading timeout — redirecting to login');
+                localStorage.clear();
+                sessionStorage.clear();
+                window.location.href = '/auth/login';
+            }, 6000);
+        }
+
+        return () => {
+            if (redirectTimerRef.current) {
+                clearTimeout(redirectTimerRef.current);
+            }
+        };
+    }, [loading, profile]);
 
     if (loading) {
         return (
@@ -49,7 +77,7 @@ export function DashboardShell({ children, header }: DashboardShellProps) {
                     </div>
                     
                     <p className="text-[10px] text-slate-400 font-mono mt-4">
-                        Status: Menunggu Auth Context (Timeout: 10s)
+                        Status: Menunggu Auth Context (Auto-redirect dalam 6 detik)
                     </p>
                 </div>
             </div>
