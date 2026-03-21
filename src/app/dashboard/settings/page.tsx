@@ -904,8 +904,15 @@ export default function SettingsPage() {
 }
 
 // ============================================
-// FORM COMPONENTS
+// FORM COMPONENTS & HELPERS
 // ============================================
+
+const fixDriveUrl = (url: string) => {
+    if (!url.includes('drive.google.com')) return url;
+    const match = url.match(/\/file\/d\/(.+?)\//) || url.match(/id=(.+?)(&|$)/);
+    if (match && match[1]) return `https://drive.google.com/uc?export=view&id=${match[1]}`;
+    return url;
+};
 
 function MaterialForm({
     material,
@@ -959,7 +966,7 @@ function MaterialForm({
                                 <span className="text-gray-300 text-[10px]">No Img</span>
                             )}
                         </div>
-                        <Input value={imageUrl} onChange={e => setImageUrl(e.target.value)} className="h-10 w-32 text-xs bg-white" placeholder="https://..." />
+                        <Input value={imageUrl} onChange={e => setImageUrl(fixDriveUrl(e.target.value))} className="h-10 w-32 text-xs bg-white" placeholder="https://..." />
                     </div>
                 </div>
                 <div className="flex-1 space-y-3">
@@ -1132,6 +1139,19 @@ function ProductForm({
                                 <button key={e} onClick={() => setEmoji(e)} className="hover:scale-150 transition-transform text-sm p-0.5">{e}</button>
                             ))}
                         </div>
+                    </div>
+                </div>
+                <div className="space-y-1">
+                    <Label className="text-xs text-emerald-700 font-bold">Atau URL Gambar</Label>
+                    <div className="flex flex-col gap-2">
+                        <div className="w-16 h-10 bg-white border border-emerald-200 rounded-lg flex items-center justify-center overflow-hidden">
+                            {imageUrl ? (
+                                <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                            ) : (
+                                <span className="text-gray-300 text-[10px]">No Img</span>
+                            )}
+                        </div>
+                        <Input value={imageUrl} onChange={e => setImageUrl(fixDriveUrl(e.target.value))} className="h-10 w-32 text-xs bg-white" placeholder="https://..." />
                     </div>
                 </div>
                 <div className="flex-1 space-y-3">
