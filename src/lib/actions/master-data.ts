@@ -207,6 +207,46 @@ export async function getProductsWithBOM(): Promise<MasterProduct[]> {
     });
 }
 
+export async function duplicateProductAction(productId: string): Promise<void> {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // 1. Get original product
+    const { data: product, error: pErr } = await supabase.from('products').select('*').eq('id', productId).single();
+    if (pErr || !product) throw new Error("Original product not found");
+
+    // 2. Create new product entry
+    const newSku = `${product.sku}-COPY-${Math.floor(Math.random() * 1000)}`;
+    const newName = `${product.name} (Copy)`;
+    
+    // Clean up props for insert
+    const { id, created_at, updated_at, ...productData } = product;
+    
+    const { data: newProd, error: insErr } = await supabase.from('products').insert({
+        ...productData,
+        sku: newSku,
+        name: newName,
+        created_by: user?.id || product.created_by
+    }).select().single();
+    
+    if (insErr || !newProd) throw new Error(`Failed to create duplicate: ${insErr?.message}`);
+
+    // 3. Get original BOM
+    const { data: originalBom, error: bErr } = await supabase.from('product_materials').select('*').eq('product_id', productId);
+    if (!bErr && originalBom && originalBom.length > 0) {
+        // 4. Copy BOM entries
+        const newBomEntries = originalBom.map(b => ({
+            product_id: newProd.id,
+            material_id: b.material_id,
+            quantity_required: b.quantity_required
+        }));
+        await supabase.from('product_materials').insert(newBomEntries);
+    }
+
+    revalidatePath('/dashboard/settings');
+    revalidatePath('/dashboard/inventory');
+}
+
 export async function updateProductBOM(productId: string, bom: {materialId: string, qty: number}[]): Promise<void> {
     const supabase = await createClient();
     const { error: delErr } = await supabase.from('product_materials').delete().eq('product_id', productId);

@@ -17,6 +17,7 @@ import {
     X,
     RefreshCw,
     LogOut,
+    Copy,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,7 +46,8 @@ import {
     updateProductBOM,
     getCollections,
     createCollectionAction,
-    deleteCollectionAction 
+    deleteCollectionAction,
+    duplicateProductAction
 } from '@/lib/actions/master-data';
 import { createProduct, updateProduct, deleteProduct } from '@/lib/actions/inventory';
 import { useAuth } from '@/contexts/auth-context';
@@ -698,6 +700,21 @@ export default function SettingsPage() {
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                                <button onClick={async () => {
+                                                    try {
+                                                        toast.loading(`Menduplikasi ${prod.name}...`);
+                                                        await duplicateProductAction(prod.id);
+                                                        const fresh = await getProductsWithBOM();
+                                                        setProducts(fresh);
+                                                        toast.dismiss();
+                                                        toast.success(`Berhasil duplikasi '${prod.name}'`);
+                                                    } catch (err: any) {
+                                                        toast.dismiss();
+                                                        toast.error('Gagal duplikasi: ' + err.message);
+                                                    }
+                                                }} className="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-emerald-600" title="Duplicate">
+                                                    <Copy className="h-3.5 w-3.5" />
+                                                </button>
                                                 <button onClick={() => { setEditingProduct(prod); setNewProdForm(false); }} className="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-blue-600">
                                                     <Pencil className="h-3.5 w-3.5" />
                                                 </button>
